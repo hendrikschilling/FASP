@@ -10,6 +10,10 @@ It serves as a documentation on how to run the full automated segmentation pipel
 
 # Submission Data
 
+- /fasp_fill_hr_20241230145834485 the final submission surface in tiffxyz format
+- /fasp.jpg - the ink detection of the submitted surface, aligns with the surface xyz pixels by scaling the xyz coords by 1.25x (ink is sampled at 1/16 and the surface at 1/20)
+- /layers - layer 0 - 21 where 10 is the central layer not offset against the surface, they are at half of full voxel resolution so 10:1 against the surface xyz tiffs and 8:1 against the ink detection
+
 # Tools
 
 # Overview
@@ -150,21 +154,113 @@ Using for the finall passes these settings:
 For the submission values of 6 and 10 were used.
 - consesus_limit_th: if we could otherwise not proceeed go down to this number of required inliers, this will only be used if otherwise the trace would end.
 
-The tracer will generated debug/preview surface every 50 generations (labeled z_dbg)
-
+The tracer will generated debug/preview surface every 50 generations (labeled z_dbg_gen...) and in the and save a final surface, both in the output dir.
 
 ### 4.3. check for errors
+
+Using VC3D (you can directly generate the surfaces into a volpkg paths dir) the traced surfaces can be inspected for errors.
+Inspecting with a normal ome-zarr volume (to see fiber continuity) works well as does inspection using the predicted surface volumes.
+Also POIs can be used to mark points in one view and inspect it in another (add ctrl-click or ctrl-shift-click).
+The errors that need to be fixed are generally sheet jumps, were the surface jumps from one correct surface to another correct surface.
+Often these are visible by checking for gaps in the generated trace as a jump will normally not reconnect with the rest of the trace (cause its on another sheet).
+Then close to the bottleneck is normally where an error occurs.
+It is useful to go back in the generated dbg surfaces to find the first time an error appears so as to annotate the root cause.
+
 ### 4.4. annotation
-## 5. fusion & flattening of large traces
+
+VC3D allows to annotate patches as approved, defective, and to edit a patch mask which allows masking out areas of a patch that are problematic.
+For the submission (where manual input time is quite limited) these were used like this:
+**defective**
+A patch can be marked as "defective" by checking the checkbox in the VC3D side panel.
+This is fast but not very useful as most patches have some good areas and also will have some amount of errors. Errors only matter if they fall at the same spot in multiple patches, so marking a whole patch as defective, which will the tracer ignore it completely is not necessary. Only on patch was marked defective for the FASP submission.
+
+**mask**
+most used annotation and it can be performed quite quickly (1-3 patches per minute).
+By clicking on the "edit segment mask" button a mask image will be generated and saved as .tif in the segments directory. Then the systems default application for the filetype .tif will be launched. For the submission GIMP was used. The mask file is a multi-layer tif file where the lowest layer is the actual binary mask and the second layer is the rendered surface using the currently selected volume.
+To streamline the process for the FASP submission the following approach was used:
+Given an error (sheet jump) found in step 4.3.
+- place one POI on one side of the jump and a second on the other.
+- select "filter by POIs" to get a list of patches who contain this sheet jump, this probably list about 5-20 patches
+- press "edit segment mask"
+- GIMP will open an import dialog, the default settings are fine so just press import
+- click on the layer transparency to make the upper layer around 50% transparent
+- your default tool should be the pencil tool with black as color and a size of around 30-100 pixels. Use it to mask out offending areas on the lower layer (the actual mask), refer back to VC3D if you are unsure.
+- save the mask by clicking "File->overwrite mask.tif"
+With this process a mask can be generated using less than 10 clicks. This is the main annotation method used for the submission (due to the fast iteration time) at a total of 243 masks generated which should take about 2 hours.
+
+**approved**
+Checking the approved checkbox will mark a patch as manually "approved" which means the tracer will consider mesh corners coming from such a patch as good without checking for other patches. So it is important that such a patch is error free (which is not necessary when creating a mask to only remove a problem area without checking "approved").
+So the whole patch needs to be checked or potentially problematic areas need to be masked out generously, as any error in an approved patch will translate 1:1 to an error in the final trace. For this reason this feature was used sparingly for the submission and only used where otherwise the trace would not continue at all.
+If a whole patch needs to be checke the following process was used:
+- ctrl-click on a point in the area that shall be "correct".
+- follow along the two segment slices and place blue POIs every at an interval whereever you are sure the trace follows the correct sheet.
+- place red POIs where errors occur
+this process will place a "cross" of two lines which show the good/bad areas of the patch
+- ctrl-click to focus on a point on/between blue points to genrate a second line, this way a whole grid of points is genrated
+- use this grid as orientation to create a mask in GIMP
+This process could take anywhere from 5-30minutes, therefor it was used very sparingly for the submission (6 times) and not to generate a large approved patch but just to bridge a bad spot, areas that weren't necessary to bridge a gap were simply not checked and masked out to save time.
+So generate these approved patches took around 1h in total for the submission.
+
+## 5. Fusion & flattening of large traces
+
+Given the above iterative process provides a set of larger (or shorter) traces that can be combined to generate a final fused and flattened output.
+For the fusion process the traces need to be error free, you can use the same masking approach from VC3D to quickly and generously mask out error areas.
+Traces in both directions (inward and outward) can be combined.
+
 ## 5.1. winding number assignment
+
+First step in the fusion process is generating relative winding numbers of each trace by running:
+~~~
+OMP_WAIT_POLICY=PASSIVE OMP_NESTED=FALSE vc_tifxyz_winding /path/to/trace
+~~~
+Which will generate some debug images and the two files "winding.tif" and "winding_vis.tif".
+Check the winding vis for errors, it should just be a smooth continous rainbow going from left to right, if it isn't there were some errors in the source trace that weren't masked out. Mask those errors in the source trace and re-run winding estimation until it works, this should not generally be necessary.
+
+Copy the winding.tif and wind_vis.tif to the traces storage directory so its all in one place and ready for the next step.
+The winding estimation should take about 10s.
+
 ## 5.2. joint fusion and inpainting
 
-PATHD=/home/hendrik/data/ml_datasets/vesuvius/manual_wget/dl.ash2txt.org/full-scrolls/Scroll1/PHercParis4.volpkg/paths ; OMP_WAIT_POLICY=PASSIVE OMP_NESTED=FALSE time nice bin/vc_fill_quadmesh ../docs/reference_settings/params_infill_fast_5x.json /home/hendrik/data/ml_datasets/vesuvius/manual_wget/dl.ash2txt.org/full-scrolls/Scroll1/PHercParis4.volpkg/paths/ref_opt2_1x-2024-12-20_7164/ /home/hendrik/data/ml_datasets/vesuvius/manual_wget/dl.ash2txt.org/full-scrolls/Scroll1/PHercParis4.volpkg/paths/ref_opt2_1x-2024-12-20_7164/winding.tif 1.0 /home/hendrik/data/ml_datasets/vesuvius/manual_wget/dl.ash2txt.org/full-scrolls/Scroll1/PHercParis4.volpkg/paths/ref_someerrors_winddetect_03926/ /home/hendrik/data/ml_datasets/vesuvius/manual_wget/dl.ash2txt.org/full-scrolls/Scroll1/PHercParis4.volpkg/paths/ref_someerrors_winddetect_03926/winding.tif 1.0 /home/hendrik/data/ml_datasets/vesuvius/manual_wget/dl.ash2txt.org/full-scrolls/Scroll1/PHercParis4.volpkg/paths/ref_2024-12-25_opt6_rev_th6_14732/ /home/hendrik/data/ml_datasets/vesuvius/manual_wget/dl.ash2txt.org/full-scrolls/Scroll1/PHercParis4.volpkg/paths/ref_2024-12-25_opt6_rev_th6_14732/winding.tif 1.0 $PATHD/ref_opt10_2024-12-29-rev-outer_th10_step10_03766/ $PATHD/ref_opt10_2024-12-29-rev-outer_th10_step10_03766/winding.tif 1.0 $PATHD/ref_opt12_fw_holes_s10_th10_2024-12-30_gen_02771/ $PATHD/ref_opt12_fw_holes_s10_th10_2024-12-30_gen_02771/winding.tif 1.0
-
+The traces (and even the patches) generated in the previous steps could directly be used for ink detection, and for debugging and fast iterations this should definitely be done. However a high qality and filled surface can be achived by running
+~~~
+OMP_WAIT_POLICY=PASSIVE OMP_NESTED=FALSE time nice\
+vc_fill_quadmesh params.json /path/to/trace1/ /path/to/trace1/winding.tif 1.0 /path/to/trace2/ /path/to/trace2/winding.tif 1.0
+~~~
+with an arbitrary number of traces. Note that the first trace will be used as the seed an it will also define the size of the output trace and will generate normal constraints, so it should be the longest and most complete. The number after the trace is the weight of the trace when generating the surface, in all test a weight of 1.0 was used and for the submission this params.json:
+~~~
+{
+    "trace_mul" : 5,
+    "dist_w" : 1.5,
+    "straight_w" : 0.005,
+    "surf_w" : 0.05,
+    "z_loc_loss_w" : 0.002,
+    "wind_w" : 10.0,
+    "wind_th" : 0.5,
+    "inpaint_back_range" : 60,
+    "opt_w" : 4
+}
+~~~
+Takes around 40 minutes:
+~~~
 13653.19user 118.87system 39:56.61elapsed 574%CPU (0avgtext+0avgdata 1945672maxresident)k
 147992inputs+2594872outputs (9major+8252759minor)pagefaults 0swaps
+~~~
+Note that traces that differ in direction _can_ be used, the winding estimator will automatically flip the input winding number and offset it so the different traces align.
 
 ## 6. rendering
+
+Using vc_render_tifxyz to render 21 layers from the trace generated in the last step at half scale from the half scale ome-zarr:
+~~~
+OMP_WAIT_POLICY=PASSIVE OMP_NESTED=FALSE time nice \
+vc_render_tifxyz /path/to/volume/ome-zarr /output/path/%02d.tif /path/to/trace 0.5 1 21
+~~~
+
+Which takes about half an hour:
+~~~
+4629.46user 12054.06system 31:08.21elapsed 893%CPU (0avgtext+0avgdata 13987244maxresident)k
+47117424inputs+17606296outputs (2major+76947037minor)pagefaults 0swaps
+~~~
+
 ## 7. ink prediction
 
 The ink detection is using the accelerated version documented [here]() at a slightly reduced quality to make processing times bearable, and is using the default settings of:
@@ -180,6 +276,8 @@ real    29m30.555s
 user    47m1.576s
 sys     18m55.119s
 ~~~
+
+If no ink is being detected maybe the layer direction needs to be flipped which can be achived with the --reverse flag.
 
 # Installation and Dependenceis
 ## Surface Prediction
