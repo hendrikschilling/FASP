@@ -16,19 +16,19 @@ https://dl.ash2txt.org/community-uploads/waldkauz/fasp/
 Overview:
 
 - /fasp_fill_hr_20241230145834485 the final submission surface in tiffxyz format
-~~~- /ink.jpg - the ink detection of the submitted surface, aligns with the surface xyz pixels by scaling the xyz coords by 1.25x (ink is sampled at 1/16 and the surface at 1/20)~~~ not yet uploaded as per submission form hint
+- ~~/ink.jpg - the ink detection of the submitted surface, aligns with the surface xyz pixels by scaling the xyz coords by 1.25x (ink is sampled at 1/16 and the surface at 1/20)~~ not yet uploaded as per submission form hint
 - /layers - layer 0 - 21 where 10 is the central layer not offset against the surface, they are at half of full voxel resolution so 10:1 against the surface xyz tiffs and 8:1 against the ink detection
 - /masks - additional information on the surface quality, a value of 0 in the state.tif means no surface, 100 - high quality, 80 - infilled
 
 # Tools & Contributions
 
-- volume surface prediciton: *Segmenting_Scroll_Surfaces.pdf*
-- vc_grow_seg_from_seed: Generate patches in a volume prediction, previously released and documented: https://discord.com/channels/1079907749569237093/1162822163171119194/threads/1312490723001499808
+- volume surface prediciton: *Segmenting_Scroll_Surfaces.pdf* and https://github.com/bruniss/nnUNet_personal_extended
+- vc_grow_seg_from_seed: Generate patches in a volume prediction, previously released and documented: [thread](https://discord.com/channels/1079907749569237093/1162822163171119194/threads/1312490723001499808)
 - vc_grow_seg_from_segments: trace larger surfaces by searching for consensus points on collections of surface patches, this can trace very large continuous surfaces and represents the core part of this submission
 - vc_tifxyz_winding: estimate consistent relative winding numbers for a trace
 - vc_fill_quadmesh: inpainting and flattening of large traces
 - vc_render_tifxyz: fast rendering of huge traces (tested with sizes surpassing the jpg img size limit!)
-- GP ink detection modified for faster and lower memory inference: https://discord.com/channels/1079907749569237093/1315006782191570975
+- GP ink detection modified for faster and lower memory inference: [thread](https://discord.com/channels/1079907749569237093/1315006782191570975)
 The tools without a link are described in more detail lower in this document.
 
 # FASP Criteria
@@ -40,8 +40,7 @@ The submission was created using approximately TODO of compute and 4 hours of hu
 ### Compute Time
 
 Computer times where split approximately like this (time in minutes):
-- inference TODO
-- packing TODO
+- volume inference 240
 - patch seed	53
 - patch expansion	599
 - repeated traces	720
@@ -49,7 +48,8 @@ Computer times where split approximately like this (time in minutes):
 - Inpaint & flattening	40
 - render	31
 - ink	30
-On an AMD 5950x, Nvidia RTX3090 and 64GB of RAM.
+The inference was run on 8x Nvidia RTX 4090 and the rest of the pipeline on
+an AMD 5950x, Nvidia RTX3090 with 64GB of RAM.
 Execution times are documented per task in the relevant sections below.
 
 ### Human Input
@@ -88,7 +88,7 @@ To achieve the submission in the allowed time several tradeoffs were made. Depen
 
 ## Surface Volume Predicitions
 
-Please refer to *Segmenting_Scroll_Surfaces.pdf*.
+Please refer to *Segmenting_Scroll_Surfaces.pdf* and https://github.com/bruniss/nnUNet_personal_extended
 
 ## VC3D & tracing tools
 The code is available at: https://github.com/hendrikschilling/volume-cartographer under the dev-next branch.
@@ -154,7 +154,7 @@ The tools are detailed later in this document or at the respective link if they 
 
 ## 1. Inference
 
-The volume prediction is documented in *Segmenting_Scroll_Surfaces.pdf*.
+The volume prediction is documented in *Segmenting_Scroll_Surfaces.pdf* and https://github.com/bruniss/nnUNet_personal_extended
 
 ## 2. patch collection seeding
 The patch seeding will trace small (4cm^2 by default) patches from the surface prediction provided as ome-zarr. Detailed documentation is available [in this thread](https://discord.com/channels/1079907749569237093/1312490723001499808).
@@ -510,14 +510,34 @@ Alternative signatures are:
 (2) vc_render_tifxyz <vol> <out> <segment> <scale-idx> <layers>
 (3) vc_render_tifxyz <vol> <out> <segment> <scale-idx> <layers> <crop-x> <crop-y> <crop-w> <crop-h>
 ```
-To render a only the central layer (1) a surface volume (2) a cropped surface volume (3).
+These will render only the central layer (1), a surface volume (2) or a cropped surface volume (3).
 
-# Code Documentation
+# Code Overview
 
+For the inference code refer to https://github.com/bruniss/nnUNet_personal_extended, everything else you can find in the VC3D repo on the dev-next branch https://github.com/hendrikschilling/volume-cartographer. The start point for most tools is the .cpp file implementing respective command line application in /apps/src/Render.cpp.
+From there the main algorithm functionality is implemented in /core/src/SurfaceHelpers.cpp while shared ceres cost functions live in /core/include/vc/core/util/CostFunctions.hpp. Additional helper classes and functions are imported from /core/include/vc/core/util/ and /core/include/vc/core/types/ and implemented in the respective .cpp files in /core/src/.
 
 # Algorithm Descriptions
 
+Generic Shared Approach
+
+## Patch Tracer
+
+## Large Surface Tracer
+
+## Filling & Flattening
+
 # Outlook / Future Work
-- make fusion work without a reference surface and improve flattening
-- invert surface definition fw/bw
-- winding annotation natively in 3D, diffuse then trace
+Big and small ideas for improving on this pipeline
+
+### fusion without a reference surface and improve flattening
+Currently the first surface used in vc_fill_quadmesh need to cover the whole inpainted area and guides the normal constraints, by comparing all supplied surfaces against each other (instead of just against the first) and fusing the normal estimates (need to optimize cause winding number can be slightly offset) more surface configurations could be fused.
+
+## Revert Surface constraints
+The model used in all surface optimizations above is to have an output surface and the quadmesh corners of this output surface have attached constraints, like the 2D location of that corner in a base surface or patch. This is not well behaved in some cases because the same underlying surface point can be referenced by different corners and corners can "wander" off the base surface. Instead keep geometry constrains on the output corners but for the surface relation invert the mapping and have the base surface corners reference the 2D surface location on the output surface. This should make the optimization more well behaved and avoids some geometric issues like hole closing an surface shrinking in the global optimization.
+
+## Winding constraints and annotations in 3D
+The winding estimation used for the fusion works like and is a very simple algorithm. The surface tracers (patch and larger area tracer) have a hard time dealing with sheet jumps as they only rely on probabilities of errors being less likely to agree than correct surfaces an assumption which doesn't always hold true. So the idea is to apply the surface winding diffusion in 3D by leveraging the surface predictions as well as manual labels. Labels will basically be: These two points are N winds apart, or these points are the same wind. This can then be used to diffuse a winding assignment along the binary surface prediction in the 3D volume and only after this step the surface tracing is performed. This has a few benefitial properties as gaps will be autoatically closed (becuase if you know where wind 1 and 3 is a diffusion of these labels will automatically produce the intermediate 2 somewhere between these labels) and is more natural to annotate compared to masking patches containing errors. The job of the surface traces is thus much simplified as they do not need to cope with ambiguities but can actually focus on tracing a high quality surface and annotations should be doable in less time for larger volumes.
+
+## Surface normal estimation
+In various stages of the tracing and inpainting surfaces corners are produced from neighboring corners. Train a normal estimating model similiar to the current nnunet but trained on output normal vectors instead of a binary classification, so even in areas where the surface location is uncertain normal constraints can be used to provide some sensible structure to the surface and avoid coarse errors.
