@@ -493,7 +493,24 @@ Note that the first trace has a special imporatance as it is used to set the siz
 - opt_w: regular optimization window width, every 8 columns a larger optimization with a window width of 32 is performed
 
 ## vc_render_tifxyz
-fast rendering of huge traces (tested with sizes surpassing the jpg img size limit!)
+
+To generate image and image stacks (offset around the surface along the normal) for inspection and ink detection use:
+```
+OMP_WAIT_POLICY=PASSIVE OMP_NESTED=FALSE time nice \
+vc_render_tifxyz /path/to/volume/ome-zarr /output/path/%02d.tif /path/to/trace 0.5 1 21
+```
+Where
+- 0.5 the output scale (relative to the base volume)
+- 1 is the ome-zarr subvolume idx (where 0 is 1:1 and every increment by 1 halves the resolution)
+- 21 will generate 21 layers offset by 1 voxel (in original volume scale) along the normal per layer and layer 10 being the central non-offset surface
+
+Alternative signatures are:
+```
+(1) vc_render_tifxyz <vol> <out> <segment> <scale-idx>
+(2) vc_render_tifxyz <vol> <out> <segment> <scale-idx> <layers>
+(3) vc_render_tifxyz <vol> <out> <segment> <scale-idx> <layers> <crop-x> <crop-y> <crop-w> <crop-h>
+```
+To render a only the central layer (1) a surface volume (2) a cropped surface volume (3).
 
 # Code Documentation
 
