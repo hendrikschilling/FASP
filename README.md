@@ -11,8 +11,7 @@ It serves as a documentation on how to run the full automated segmentation pipel
 - https://github.com/bruniss/VC-Surface-Models/tree/main
 
 ## Tracing and ink detection
-- this documentation: https://github.co
-m/hendrikschilling/FASP
+- this documentation: https://github.com/hendrikschilling/FASP
 - surface tracing and inspection: https://github.com/hendrikschilling/volume-cartographer (branch dev-next)
 - faster ink detection: https://github.com/hendrikschilling/Vesuvius-Grandprize-Winner
 
