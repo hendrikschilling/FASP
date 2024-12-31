@@ -1,4 +1,4 @@
-# Intro
+# Overview
 
 This repo documents a submission for the first automated segmentation price of the vesuvius challenge 2024 .
 It serves as a documentation on how to run the full automated segmentation pipeline and a decription of the algorithms and tools used.
@@ -20,8 +20,6 @@ It serves as a documentation on how to run the full automated segmentation pipel
 The final data is available at:
 https://dl.ash2txt.org/community-uploads/waldkauz/fasp/
 
-Overview:
-
 - /fasp_fill_hr_20241230145834485 the final submission surface in tiffxyz format
 - ~~/ink.jpg - the ink detection of the submitted surface, aligns with the surface xyz pixels by scaling the xyz coords by 1.25x (ink is sampled at 1/16 and the surface at 1/20)~~ not yet uploaded as per submission form hint
 - /layers - layer 0 - 21 where 10 is the central layer not offset against the surface, they are at half of full voxel resolution so 10:1 against the surface xyz tiffs and 8:1 against the ink detection
@@ -33,7 +31,7 @@ Overview:
 
 # Tools & Contributions
 
-- volume surface prediciton: compre [Surface Volume Predicion links](#surface-volume-prediction)
+- volume surface prediciton: compare [Surface Volume Predicion links](#surface-volume-prediction)
 - vc_grow_seg_from_seed: Generate patches in a volume prediction, previously released and documented: [thread](https://discord.com/channels/1079907749569237093/1162822163171119194/threads/1312490723001499808)
 - vc_grow_seg_from_segments: trace larger surfaces by searching for consensus points on collections of surface patches, this can trace very large continuous surfaces and represents the core part of this submission
 - vc_tifxyz_winding: estimate consistent relative winding numbers for a trace
@@ -458,7 +456,7 @@ estimate consistent relative winding numbers for a trace:
 ```
 vc_tifxyz_winding /path/to/trace
 ```
-No paramters required, the tool will store a winding.tif floating point tiff containing the relative winding numbers and wind_vis.tif which is a rainbow visualization of the winding numbers, and should be a smooth rainbow. If there are artifacts the source trace can be annotated with a mask to ignore problematic areas.
+No parameters required, the tool will store a winding.tif floating point tiff containing the relative winding numbers and wind_vis.tif which is a rainbow visualization of the winding numbers, and should be a smooth rainbow. If there are artifacts the source trace can be annotated with a mask to ignore problematic areas.
 Runtime should be around 10 seconds.
 
 ## vc_fill_quadmesh
@@ -530,16 +528,43 @@ From there the main algorithm functionality is implemented in /core/src/SurfaceH
 
 # Algorithm Descriptions
 
-Generic Shared Approach
+## Tracing Algorithms
 
-## Patch Tracer
+The tracing algorithms all have in common that they:
+- operate on a quadmesh structure
+- using data term and mesh structure constraints
+- greedily expand single corners followed by regular windowed least sqares optimization
+- are implemented on top of ceres-solver (and can make use of cudss gpu accelerated sparse solver to accelerate solving)
+- use "backwards" surface constraints (also compare)[#revert-surface-constraints] where if the trace is built on top of existing surfaces each quadmesh corner of the output mesh will have an associtated 2D location refereing to the base mesh.
+
+### mesh structure constraints
+
+Mesh structure constraints regularize the structure of the quadmesh to conform to a smooth surface with corners at a fixed interval by applying distance and bending losses at each corner, for more details please refer to the implementation at /core/src/SurfaceHelpers.cpp.
+
+### Patch Tracing
+
+The patch tracer uses a precomputed distance transform of the binary surface prediction volume as data term (so it will try to keep the mesh surface close to those predictions). It will greedily expand individual corners and if the distance is above a threshold either not expand that corner (if its an outside edge) or only add the mesh structure constraints but not data term (if the corner is located between other existing corners). For the first few iteration after each generation of expansion the patch tracer will run a global optimization step where all corners are optimized jointly. After a certain number of generations the joint optimization is run in a windowed fashion in regular intervals to keep runtimes down.
 
 ## Large Surface Tracer
 
-## Filling & Flattening
+The large area tracer operates similar to the patch tracer but the data term is replaced by a consensus measure. In addition to the mesh structure constraints each corner has associated 2D locations which point to the surface location of patches that support that corner. This way the step size can by large than the patches it is based on (as it only indexes 2d locations on patches which can be resolved to more detailed 3D locations by doing linear interpolation of the 2d locations and then looking up the 3d coordiantes from the respective patches). Also the global optimization does no longer operate (purely) on 3D locations but optimizes the 2d support points of its corners. The tracer operates in a moving window fashion starting from the left, where a full scroll height, bit limited width window determines the are where corners are added and the "global" (windowed) optimization jointly optimizes all corner points. 2D locations are constrained to keep their mapping relative to the patches they are based on, so the surface cannot distort much compared to the baseline patches. However an additional constraint that push for mesh corner y index to be proportional to the volume z location, while improving the quality of the surface and helping with hole closing, does lead to a surface that contains a waviness as these two measures only correctly align if the surface is perfectly parallel to the z axis of the volume.
+
+## Filling, Fusion & Flattening
+
+This process starts by taking the separate surfaces with their relative winding numbers and finding correspondances between them. The winding offsets at these correspondances are used to normalize the separate winding estimates into on globally consistent winding assignment. To compensate for winding direction differences (because the direction of traces might be inverted) the offsets are also calculated for a reverted winding number per trace and direction with the smaller difference between the 10/90 percentile of the winding offsets is used to generate the mapping.
+The actual tracer operates similarly to the large area tracer but does add additional corners in the holes of the input traces which only consist of structure constraints, to try to inpaint the input surfaces. In addition the z/y constraints are very weak (to allow for proper flattening) and the corner locations are constrained by the tgt winding number per location, so the optimizer can't "jump sheets". Finally to recover the full fidelity of the input tracers at each corner the optimized (and trough structure constraints smoothed) coordiante is replaced by the original base surface coordinate and the surface is upsampled by using the base surface coordiantes instead of a direct interpolation of the optimized model.
+
+## Winding Estimation
+
+The winding estimation works by:
+- placeing N random points on a surface
+- calculating all intersections along the normal with the surface
+- calculating per wrap median pixel distance between intersections (basically a wrap width in pixels)
+- using this pixel distance we can reject intersections which are not neighboring wraps
+- finally a diffusion process distributes from a single seed a consistend winding number by incrementing/decrementing the winding number at each "jump" along the normal, while jointly diffusion in y direction (which keeps the winding number the same) and in x direction (which increases/decreases the winding number according to the previously estimated wrap width)
 
 # Outlook / Future Work
-Big and small ideas for improving on this pipeline
+Big and small ideas for improving upon this pipeline.
 
 ### fusion without a reference surface and improve flattening
 Currently the first surface used in vc_fill_quadmesh need to cover the whole inpainted area and guides the normal constraints, by comparing all supplied surfaces against each other (instead of just against the first) and fusing the normal estimates (need to optimize cause winding number can be slightly offset) more surface configurations could be fused.
@@ -548,7 +573,7 @@ Currently the first surface used in vc_fill_quadmesh need to cover the whole inp
 The model used in all surface optimizations above is to have an output surface and the quadmesh corners of this output surface have attached constraints, like the 2D location of that corner in a base surface or patch. This is not well behaved in some cases because the same underlying surface point can be referenced by different corners and corners can "wander" off the base surface. Instead keep geometry constrains on the output corners but for the surface relation invert the mapping and have the base surface corners reference the 2D surface location on the output surface. This should make the optimization more well behaved and avoids some geometric issues like hole closing an surface shrinking in the global optimization.
 
 ## Winding constraints and annotations in 3D
-The winding estimation used for the fusion works like and is a very simple algorithm. The surface tracers (patch and larger area tracer) have a hard time dealing with sheet jumps as they only rely on probabilities of errors being less likely to agree than correct surfaces an assumption which doesn't always hold true. So the idea is to apply the surface winding diffusion in 3D by leveraging the surface predictions as well as manual labels. Labels will basically be: These two points are N winds apart, or these points are the same wind. This can then be used to diffuse a winding assignment along the binary surface prediction in the 3D volume and only after this step the surface tracing is performed. This has a few benefitial properties as gaps will be autoatically closed (becuase if you know where wind 1 and 3 is a diffusion of these labels will automatically produce the intermediate 2 somewhere between these labels) and is more natural to annotate compared to masking patches containing errors. The job of the surface traces is thus much simplified as they do not need to cope with ambiguities but can actually focus on tracing a high quality surface and annotations should be doable in less time for larger volumes.
+The winding estimation used for the fusion works like and is a very simple algorithm. The surface tracers (patch and larger area tracer) have a hard time dealing with sheet jumps as they only rely on probabilities of errors being less likely to agree than correct surfaces an assumption which doesn't always hold true. So the idea is to apply the surface winding diffusion in 3D by leveraging the surface predictions as well as manual labels. Labels will basically be: These two points are N winds apart, or these points are the same wind. This can then be used to diffuse a winding assignment along the binary surface prediction in the 3D volume and only after this step the surface tracing is performed. This has a few benefitial properties as gaps will be automatically closed (becuase if you know where wind 1 and 3 is a diffusion of these labels will automatically produce the intermediate 2 somewhere between these labels) and is more natural to annotate compared to masking patches containing errors. The job of the surface traces is thus much simplified as they do not need to cope with ambiguities but can actually focus on tracing a high quality surface and annotations should be doable in less time for larger volumes. Additionall fiber annotations and predictions can also be incorporated naturally and a more advanced implementation might make use of a [field based optimization](https://discord.com/channels/1079907749569237093/1312623336739831878/1323487224293101568).
 
 ## Surface normal estimation
 In various stages of the tracing and inpainting surfaces corners are produced from neighboring corners. Train a normal estimating model similiar to the current nnunet but trained on output normal vectors instead of a binary classification, so even in areas where the surface location is uncertain normal constraints can be used to provide some sensible structure to the surface and avoid coarse errors.
