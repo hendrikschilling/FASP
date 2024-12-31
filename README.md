@@ -8,12 +8,10 @@ It serves as a documentation on how to run the full automated segmentation pipel
 ## Surface Volume Prediction
 
 - [Segmenting_Scroll_Surfaces.pdf](Segmenting_Scroll_Surfaces.pdf) (in this repo)
-- https://github.com/bruniss/nnUNet_personal_extended
 - https://github.com/bruniss/VC-Surface-Models/tree/main
 
 ## Tracing and ink detection
-- this documentation: https://github.co
-m/hendrikschilling/FASP
+- this documentation: https://github.com/hendrikschilling/FASP
 - surface tracing and inspection: https://github.com/hendrikschilling/volume-cartographer (branch dev-next)
 - faster ink detection: https://github.com/hendrikschilling/Vesuvius-Grandprize-Winner
 
