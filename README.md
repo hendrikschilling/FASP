@@ -1,40 +1,120 @@
 # Intro
 
 This repo serves to document a submission for the first automated segmentation price of the vesuvius challenge 2024.
-It serves as a documentation on how to run the full automated segmentation pipeline and a decription of the algorithms used.
+It serves as a documentation on how to run the full automated segmentation pipeline and a decription of the algorithms and tools used.
 
 # Links & Repos
-
-# Input Data
-- TODO src 16bit ome-zarr
+- this documentation: https://github.com/hendrikschilling/FASP
+- surface tracing and inspection: https://github.com/hendrikschilling/volume-cartographer (branch dev-next)
+- ink detection: https://github.com/hendrikschilling/Vesuvius-Grandprize-Winner
 
 # Submission Data
 
-- /fasp_fill_hr_20241230145834485 the final submission surface in tiffxyz format
-- /fasp.jpg - the ink detection of the submitted surface, aligns with the surface xyz pixels by scaling the xyz coords by 1.25x (ink is sampled at 1/16 and the surface at 1/20)
-- /layers - layer 0 - 21 where 10 is the central layer not offset against the surface, they are at half of full voxel resolution so 10:1 against the surface xyz tiffs and 8:1 against the ink detection
+The final data is available at:
+https://dl.ash2txt.org/community-uploads/waldkauz/fasp/
 
-# Tools
+Overview:
+- /fasp_fill_hr_20241230145834485 the final submission surface in tiffxyz format
+~~~- /ink.jpg - the ink detection of the submitted surface, aligns with the surface xyz pixels by scaling the xyz coords by 1.25x (ink is sampled at 1/16 and the surface at 1/20)~~~ not yet uploaded as per submission form hint
+- /layers - layer 0 - 21 where 10 is the central layer not offset against the surface, they are at half of full voxel resolution so 10:1 against the surface xyz tiffs and 8:1 against the ink detection
+- /masks - additional information on the surface quality, a value of 0 in the state.tif means no surface, 100 - high quality, 80 - infilled
+
+# Tools & Contributions
+
+- volume surface prediciton: *Segmenting_Scroll_Surfaces.pdf*
+- vc_grow_seg_from_seed: Generate patches in a volume prediction, previously released and documented: https://discord.com/channels/1079907749569237093/1162822163171119194/threads/1312490723001499808
+- vc_grow_seg_from_segments: trace larger surfaces by searching for consensus points on collections of surface patches, this can trace very large continuous surfaces and represents the core part of this submission
+- vc_tifxyz_winding: estimate consistent relative winding numbers for a trace
+- vc_fill_quadmesh: inpainting and flattening of large traces
+- vc_render_tifxyz: fast rendering of huge traces (tested with sizes surpassing the jpg img size limit!)
+
+# FASP Criteria
+
+## Inputs
+
+The submission was created using approximately TODO of compute and 4 hours of human supervision.
+
+### Compute Time
+
+Computer times where split approximately like this (time in minutes):
+- inference TODO
+- packing TODO
+- patch seed	53
+- patch expansion	599
+- repeated traces	720
+- winding estimation	1
+- Inpaint & flattening	40
+- render	31
+- ink	30
+On an AMD 5950x, Nvidia RTX3090 and 64GB of RAM.
+Execution times are documented per task in the relevant sections below.
+
+### Human Input
+
+Human input was (appart from starting prepared commands and file operations) limited to 4 hours.
+The time was used to create 243 annotations, the detailed process is described later in this document (compare step 4.4 Annotation).
+The time split is appoximately (minutes):
+- 237 coarse masks: 119
+- 6 fine masks: 60
+- inspection: 60
+
+## Outputs
+
+### Geometry
+The result is submitted as a quadmesh stored as "tiffxyz" - every quad corner is a single pixel with the coordinates stored in x.tif/y.tif/z.tif and some metadata information in meta.json. It is a single continuous manifold mesh that covers most of the GP banner (and a bit more on the inside). High quality areas (compare state.tif) should be free of self-intersections.
+
+### Segmentation Quality
+High quality areas (compare state.tif) surpass the GP quality and quite closely follow the surface.
+
+### Flattening
+Most areas show low distortion, some distortion occurs around inpainted areas, especially at the left.
+
+### Ink Detection
+The ink detection is based on the GP ink detection, with the code adapted to produce smaller files much faster and with lower memory requirements
+
+## Tradeoffs
+
+To achieve the submission in the allowed time several tradeoffs were made. Depending on the goal it is possible choose a different quality/compute/human-time tradeoff:
+
+- patch expansion was run only with 16 instead of 32 threads to have capacity for other tasks at that time, also as long as fast shared network storage is available this could be processed in a distributed manner
+- ink detecton accuracy: Quality was set to "1", the ink detection code has higher quality modes available, but time requirements rise quadratic.
+- rendering resoution: to limit rendering times and RAM requirements half resolution source volumes and render resolution was used and then upscaled on-the-fly in the ink detection. This reduces ink detection quality slightly.
+- Annotation time: If more human input is acceptable most of the inpainted areas could be raised to the high quality standard of the trace. If the annotation is confined to regions of interest after an initial ink detection run annotations times should not explode too much.
 
 # Overview
 
 The overall process consists of the following steps:
 1. surface prediction volume generation
-2. patch gen seeding
-3. patch gen expansion
+2. patch collection seeding
+3. patch collection expansion
 4. iterative surface tracing & annotation
 5. fusion & flattening of large traces
 6. rendering
 7. ink prediction
 
-# Short Guide
-This short guide serves to document the steps taken to achieve the FASP submission without diverting too much into all the options the tools provide.
+
+
+# Input Data
+
+## Surface Prediction
+
+## Tracing to Ink Detection
+The tracer and the rendering require ome-zarr volumes with a meta.json file according to the VC requirements:
+For example:
+```
+{"height":7888,"max":65535.0,"min":0.0,"name":"thename","slices":14376,"type":"vol","uuid":"theuuid","voxelsize":7.91,"width":8096, "format":"zarr"}
+```
+For the submission this volume was used:
+https://dl.ash2txt.org/community-uploads/james/Scroll1/Scroll1_8um.zarr/
+
+# Guide
+This guide serves to document the steps taken to achieve the FASP submission without diverting too much into all the additional options the tools provide.
 
 ## 1. Inference
-## 1.5 Data prep
-data prep
-{"height":7888,"max":65535.0,"min":0.0,"name":"043_044_050_random_ensemble_otsu_ome.zarr/","slices":14376,"type":"vol","uuid":"043_044_050_random_ensemble_otsu_ome.zarr/","voxelsize":7.91,"width":8096, "format":"zarr"}
-## 2. patch gen seeding
+
+The volume prediction is documented in *Segmenting_Scroll_Surfaces.pdf*.
+
+## 2. patch collection seeding
 The patch seeding will trace small (4cm^2 by default) patches from the surface prediction provided as ome-zarr. Detailed documentation is available [in this thread](https://discord.com/channels/1079907749569237093/1312490723001499808).
 The command used for the submission is:
 
@@ -63,7 +143,7 @@ This process generated an initial set of 775 patches.
 
 The patches can be inspected with VC3D by placing them in the paths directory of the volpkg. Symlinks can also be used.
 
-## 3. patch gen expansion
+## 3. patch collection expansion
 The patche expansion step also documented [here](https://discord.com/channels/1079907749569237093/1312490723001499808) generates a set of overlapping patches throughout the whole gp-prediction volume.
 
 The commands used where: 
@@ -166,7 +246,7 @@ Often these are visible by checking for gaps in the generated trace as a jump wi
 Then close to the bottleneck is normally where an error occurs.
 It is useful to go back in the generated dbg surfaces to find the first time an error appears so as to annotate the root cause.
 
-### 4.4. annotation
+### 4.4. Annotation
 
 VC3D allows to annotate patches as approved, defective, and to edit a patch mask which allows masking out areas of a patch that are problematic.
 For the submission (where manual input time is quite limited) these were used like this:
@@ -211,7 +291,8 @@ Traces in both directions (inward and outward) can be combined.
 
 First step in the fusion process is generating relative winding numbers of each trace by running:
 ```
-OMP_WAIT_POLICY=PASSIVE OMP_NESTED=FALSE vc_tifxyz_winding /path/to/trace
+OMP_WAIT_POLICY=PASSIVE OMP_NESTED=FALSE \
+vc_tifxyz_winding /path/to/trace
 ```
 Which will generate some debug images and the two files "winding.tif" and "winding_vis.tif".
 Check the winding vis for errors, it should just be a smooth continous rainbow going from left to right, if it isn't there were some errors in the source trace that weren't masked out. Mask those errors in the source trace and re-run winding estimation until it works, this should not generally be necessary.
@@ -223,7 +304,7 @@ The winding estimation should take about 10s.
 
 The traces (and even the patches) generated in the previous steps could directly be used for ink detection, and for debugging and fast iterations this should definitely be done. However a high qality and filled surface can be achived by running
 ```
-OMP_WAIT_POLICY=PASSIVE OMP_NESTED=FALSE time nice\
+OMP_WAIT_POLICY=PASSIVE OMP_NESTED=FALSE time nice \
 vc_fill_quadmesh params.json /path/to/trace1/ /path/to/trace1/winding.tif 1.0 /path/to/trace2/ /path/to/trace2/winding.tif 1.0
 ```
 with an arbitrary number of traces. Note that the first trace will be used as the seed an it will also define the size of the output trace and will generate normal constraints, so it should be the longest and most complete. The number after the trace is the weight of the trace when generating the surface, in all test a weight of 1.0 was used and for the submission this params.json:
@@ -281,41 +362,31 @@ If no ink is being detected maybe the layer direction needs to be flipped which 
 
 # Installation and Dependencies
 
-## 
+## Surface Volume Predicitions
+
+Please refer to *Segmenting_Scroll_Surfaces.pdf*.
 
 ## VC3D & tracing tools
-Code is available here: TODO
-Please refer to the refer to the Dockerfile "jammy.Dockerfile" to see a list of all dependencies or to build a docker image based on ubuntu 22.04.
-In addition if you want to reproduce
+The code is available at: https://github.com/hendrikschilling/volume-cartographer under the dev-next branch.
+Please refer to the refer to the "jammy.Dockerfile" to see a list of all dependencies or to build a docker image based on ubuntu 22.04.
+In addition it is recommended to use a git version of ceres-solver together with a [Nvidia cudss](https://developer.nvidia.com/cudss) installation to accelerate the large area tracing and the inpainting/flattening.
 
 ## Ink detection
 
-## Surface Prediction
-## VC3D
+Ink detection is based on the original GP ink detection (which could also be used instead).
+The fork is found at https://github.com/hendrikschilling/Vesuvius-Grandprize-Winner and installation requirements are unchanged.
 
-# Detailed Guide
+# Misc
 
-## 1. surface prediction volume generation
-
-## 2. ....
-
-
-# proessing times
-- surface tracer: at step 10 1/3 of GP segment at 3 optimization steps: 55minutes
-
-# tradeoffs
-- patch expansion run only with 16 instead of 32 threads to have capacity for other tasks at that time
-- ink detecton accuracy (q1)
-- rendering resoution (also ink detection accuracy)
-
-# misc
-
-## HW
-all results above apart from the surface volume predicitions were achieve using:
+## HW/SW configuration
+All steps above following the volume surface prediction were achieved using:
 - AMD 5950x
 - Nvidia 3090
-- 64GB RAM
-- 
-
-13653.19user 118.87system 39:56.61elapsed 574%CPU (0avgtext+0avgdata 1945672maxresident)k
-147992inputs+2594872outputs (9major+8252759minor)pagefaults 0swaps
+- 64GB DDR4 RAM + 256GB swap
+- Transcend TS2TMTE220S SSD
+- a collection of HDDs in a BTRFS RAID1
+SW environment:
+- Cuda 12.7
+- cudss 12.5.4
+- pytorch 2.5.4
+- Arch Linux
