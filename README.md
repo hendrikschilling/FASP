@@ -68,7 +68,7 @@ Execution times are documented per task in the relevant sections below.
 
 ### Human Input
 
-Human input was (appart from starting prepared commands and file operations) limited to 4 hours.<br>
+Human input was (apart from starting prepared commands and file operations) limited to 4 hours.<br>
 The time was used to create 243 annotations, the detailed process is described later in this document (compare step 4.4 Annotation).<br>
 The time split is appoximately (minutes):
 
@@ -98,7 +98,7 @@ The ink detection is based on the GP ink detection, with the code adapted to pro
 
 ## Tradeoffs
 
-To achieve the submission in the allowed time several tradeoffs were made. Depending on the goal it is possible choose a different quality/compute/human-time tradeoff:
+To achieve the submission in the allowed time several tradeoffs were made. Depending on the goal it is possible choose a different quality/compute/human-input tradeoff:
 
 - patch expansion was run only with 16 instead of 32 threads to have capacity for other tasks at that time, also as long as fast shared network storage is available this could be processed in a distributed manner
 - ink detecton accuracy: Quality was set to "1", the ink detection code has higher quality modes available, but time requirements rise quadratically.
