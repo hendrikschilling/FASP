@@ -8,7 +8,6 @@ It serves as a documentation on how to run the full automated segmentation pipel
 ## Surface Volume Prediction
 
 - [Segmenting_Scroll_Surfaces.pdf](Segmenting_Scroll_Surfaces.pdf) (in this repo)
-- https://github.com/bruniss/nnUNet_personal_extended
 - https://github.com/bruniss/VC-Surface-Models/tree/main
 
 ## Tracing and ink detection
