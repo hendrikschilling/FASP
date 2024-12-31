@@ -150,21 +150,11 @@ For example rendering and ink detection may be run on patches from the first pat
 ## Debugging & Inspection of Results
 Many tools output information on the command line and store additional debugging visualizations in the working directory, useful for accessing the quality and issues with the run.
 
-# Process Overview
-
-The overall process consists of the following steps:
-
-1. surface prediction volume generation
-2. patch collection seeding
-3. patch collection expansion
-4. iterative surface tracing & annotation
-5. fusion & flattening of large traces
-6. rendering
-7. ink prediction
-
 # Input Data
 
-## Surface Prediction
+## Surface Prediction (step 1 below)
+
+See [Surface Volume Predicion links at the beginning of this document.](#surface-volume-prediction)
 
 ## Patch generation to Ink Detection (step 2-7)
 The tracer and the rendering require ome-zarr volumes with a meta.json file according to the VC requirements:
@@ -182,12 +172,25 @@ For example:
     "format":"zarr"
 }
 ```
-For the submission this volume was used for rendering:
+For the rendering of the submission this volume was used:
 https://dl.ash2txt.org/community-uploads/james/Scroll1/Scroll1_8um.zarr/
 
 # Pipeline Documentation
+
 This section serves to document the steps taken to achieve the FASP submission without diverting too much into all the additional options the tools provide.
 The tools are detailed later in this document or at the respective link if they were published before.
+
+## Overview
+
+The overall process consists of the following steps:
+
+1. surface prediction volume generation
+2. patch collection seeding
+3. patch collection expansion
+4. iterative surface tracing & annotation
+5. fusion & flattening of large traces
+6. rendering
+7. ink prediction
 
 ## 1. Inference
 
