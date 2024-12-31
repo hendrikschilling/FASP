@@ -27,6 +27,8 @@ https://dl.ash2txt.org/community-uploads/waldkauz/fasp/
 - /layers - layer 0 - 21 where 10 is the central layer not offset against the surface, they are at half of full voxel resolution so 10:1 against the surface xyz tiffs and 8:1 against the ink detection
 - /masks - additional information on the surface quality, a value of 0 in the state.tif means no surface, 100 - high quality, 80 - infilled
 
+![image](imgs/full_segment.jpg)
+
 # Bonus Bin
 
 - [patches and annotations](https://dl.ash2txt.org/community-uploads/waldkauz/fasp/autogen8_1217_ensemble.zip) the patches and annotations used to produce this submission.
@@ -81,14 +83,20 @@ The time split is appoximately (minutes):
 ### Geometry
 The result is submitted as a quadmesh stored as "tiffxyz" - every quad corner is a single pixel with the coordinates stored in x.tif/y.tif/z.tif and some metadata information in meta.json. It is a single continuous manifold mesh that covers most of the GP banner (and a bit more on the inside). High quality areas (compare state.tif) should be free of self-intersections.
 
+![image](imgs/full_trace_zslice.jpg)
+
 ### Segmentation Quality
 High quality areas (compare state.tif) surpass the GP quality and quite closely follow the surface.
+
+![image](imgs/detail.jpg)
 
 ### Flattening
 Most areas show low distortion, some distortion occurs around inpainted areas, especially at the left.
 
 ### Ink Detection
 The ink detection is based on the GP ink detection, with the code adapted to produce smaller files much faster and with lower memory requirements
+
+![image](imgs/ink_censored.jpg)
 
 ## Tradeoffs
 
@@ -114,6 +122,8 @@ In addition it is recommended to use a git version of ceres-solver together with
 
 Ink detection is based on the original GP ink detection (which could also be used instead).<br>
 The fork is found at https://github.com/hendrikschilling/Vesuvius-Grandprize-Winner and installation requirements are unchanged.
+
+![image](imgs/ink_cli.jpg)
 
 # Misc
 
@@ -261,6 +271,8 @@ sys     346m59.649s
 
 The patches can be inspected with VC3D by placing them in the paths directory of the volpkg. Symlinks can also be used.
 
+![image](imgs/patches.jpg)
+
 ## 4. iterative surface tracing
 This step will finally create larger connected surfaces. The large surface tracer generates a single surface by tracing a "consensus" surface from the patches generated earlier. This processed can be influenced by annotating patches in several ways which allows to guide the tracer to avoid errors. Hence the process looks like this:
 
@@ -324,6 +336,8 @@ Often these are visible by checking for gaps in the generated trace as a jump wi
 Then close to the bottleneck is normally where an error occurs.
 It is useful to go back in the generated dbg surfaces to find the first time an error appears so as to annotate the root cause.
 
+![image](imgs/sheet_jump.jpg)
+
 ### 4.4. Annotation
 
 VC3D allows to annotate patches as approved, defective, and to edit a patch mask which allows masking out areas of a patch that are problematic.
@@ -349,6 +363,8 @@ Given an error (sheet jump) found in step 4.3.
 
 With this process a mask can be generated using less than 10 clicks. This is the main annotation method used for the submission (due to the fast iteration time) at a total of 243 masks generated which should take about 2 hours.
 
+![image](imgs/annotation1.jpg)
+
 **approved**<br>
 Checking the approved checkbox will mark a patch as manually "approved" which means the tracer will consider mesh corners coming from such a patch as good without checking for other patches. So it is important that such a patch is error free (which is not necessary when creating a mask to only remove a problem area without checking "approved").
 So the whole patch needs to be checked or potentially problematic areas need to be masked out generously, as any error in an approved patch will translate 1:1 to an error in the final trace. For this reason this feature was used sparingly for the submission and only used where otherwise the trace would not continue at all.
@@ -363,6 +379,8 @@ this process will place a "cross" of two lines which show the good/bad areas of 
 
 This process could take anywhere from 5-30minutes, therefor it was used very sparingly for the submission (6 times) and not to generate a large approved patch but just to bridge a bad spot, areas that weren't necessary to bridge a gap were simply not checked and masked out to save time.
 So generate these approved patches took around 1h in total for the submission.
+
+![image](imgs/approved_patch.jpg)
 
 ## 5. Fusion & flattening of large traces
 
