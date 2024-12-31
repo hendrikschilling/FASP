@@ -4,6 +4,13 @@ This repo documents a submission for the first automated segmentation price of t
 It serves as a documentation on how to run the full automated segmentation pipeline and a decription of the algorithms and tools used.
 
 # Links & Repos
+
+## Surface Volume Prediction
+- [Segmenting_Scroll_Surfaces.pdf](Segmenting_Scroll_Surfaces.pdf) (within this repo)
+- https://github.com/bruniss/nnUNet_personal_extended
+- https://github.com/bruniss/VC-Surface-Models/tree/main
+
+## Tracing and ink detection
 - this documentation: https://github.com/hendrikschilling/FASP
 - surface tracing and inspection: https://github.com/hendrikschilling/volume-cartographer (branch dev-next)
 - ink detection: https://github.com/hendrikschilling/Vesuvius-Grandprize-Winner
@@ -20,9 +27,13 @@ Overview:
 - /layers - layer 0 - 21 where 10 is the central layer not offset against the surface, they are at half of full voxel resolution so 10:1 against the surface xyz tiffs and 8:1 against the ink detection
 - /masks - additional information on the surface quality, a value of 0 in the state.tif means no surface, 100 - high quality, 80 - infilled
 
+# Bonus Bin
+
+- [patches and annotations](https://dl.ash2txt.org/community-uploads/waldkauz/fasp/autogen8_1217_ensemble.zip) the patches and annotations used to produce this submission.
+
 # Tools & Contributions
 
-- volume surface prediciton: *Segmenting_Scroll_Surfaces.pdf* and https://github.com/bruniss/nnUNet_personal_extended
+- volume surface prediciton: See [Suface Volume Predicion at the top of this doc](#surface-volume-prediction)
 - vc_grow_seg_from_seed: Generate patches in a volume prediction, previously released and documented: [thread](https://discord.com/channels/1079907749569237093/1162822163171119194/threads/1312490723001499808)
 - vc_grow_seg_from_segments: trace larger surfaces by searching for consensus points on collections of surface patches, this can trace very large continuous surfaces and represents the core part of this submission
 - vc_tifxyz_winding: estimate consistent relative winding numbers for a trace
@@ -35,11 +46,11 @@ The tools without a link are described in more detail lower in this document.
 
 ## Inputs
 
-The submission was created using approximately TODO of compute and 4 hours of human supervision.
+The submission was created in approximately 28 hours of computing and 4 hours of human supervision.
 
 ### Compute Time
 
-Computer times where split approximately like this (time in minutes):
+Compute times were split approximately like this (time in minutes):
 - volume inference 240
 - patch seed	53
 - patch expansion	599
