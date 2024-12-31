@@ -6,14 +6,16 @@ It serves as a documentation on how to run the full automated segmentation pipel
 # Links & Repos & Docs
 
 ## Surface Volume Prediction
-- [Segmenting_Scroll_Surfaces.pdf](Segmenting_Scroll_Surfaces.pdf) (within this repo)
+
+- [Segmenting_Scroll_Surfaces.pdf](Segmenting_Scroll_Surfaces.pdf) (in this repo)
 - https://github.com/bruniss/nnUNet_personal_extended
 - https://github.com/bruniss/VC-Surface-Models/tree/main
 
 ## Tracing and ink detection
-- this documentation: https://github.com/hendrikschilling/FASP
+- this documentation: https://github.co
+m/hendrikschilling/FASP
 - surface tracing and inspection: https://github.com/hendrikschilling/volume-cartographer (branch dev-next)
-- ink detection: https://github.com/hendrikschilling/Vesuvius-Grandprize-Winner
+- faster ink detection: https://github.com/hendrikschilling/Vesuvius-Grandprize-Winner
 
 # Submission Data
 
@@ -38,6 +40,7 @@ https://dl.ash2txt.org/community-uploads/waldkauz/fasp/
 - vc_fill_quadmesh: inpainting and flattening of large traces
 - vc_render_tifxyz: fast rendering of huge traces (tested with sizes surpassing the jpg img size limit!)
 - GP ink detection modified for faster and lower memory inference: [thread](https://discord.com/channels/1079907749569237093/1315006782191570975)
+
 The tools without a link are described in more detail lower in this document.
 
 # FASP Criteria
@@ -49,6 +52,7 @@ The submission was created in approximately 28 hours of computing and 4 hours of
 ### Compute Time
 
 Compute times were split approximately like this (time in minutes):
+
 - volume inference 240
 - patch seed	53
 - patch expansion	599
@@ -57,15 +61,17 @@ Compute times were split approximately like this (time in minutes):
 - Inpaint & flattening	40
 - render	31
 - ink	30
+
 The inference was run on 8x Nvidia RTX 4090 and the rest of the pipeline on
 an AMD 5950x, Nvidia RTX3090 with 64GB of RAM.
 Execution times are documented per task in the relevant sections below.
 
 ### Human Input
 
-Human input was (appart from starting prepared commands and file operations) limited to 4 hours.
-The time was used to create 243 annotations, the detailed process is described later in this document (compare step 4.4 Annotation).
+Human input was (appart from starting prepared commands and file operations) limited to 4 hours.<br>
+The time was used to create 243 annotations, the detailed process is described later in this document (compare step 4.4 Annotation).<br>
 The time split is appoximately (minutes):
+
 - 237 coarse masks: 119
 - 6 fine masks: 60
 - inspection: 60
@@ -100,25 +106,28 @@ To achieve the submission in the allowed time several tradeoffs were made. Depen
 Please refer to [Surface Volume Predicion links at the beginning of this document.](#surface-volume-prediction).
 
 ## VC3D & tracing tools
-The code is available at: https://github.com/hendrikschilling/volume-cartographer under the dev-next branch.
-Please refer to the refer to the "jammy.Dockerfile" to see a list of all dependencies or to build a docker image based on ubuntu 22.04.
+The code is available at: https://github.com/hendrikschilling/volume-cartographer under the dev-next branch.<br>
+Please refer to the refer to the "jammy.Dockerfile" to see a list of all dependencies or to build a docker image based on ubuntu 22.04.<br>
 In addition it is recommended to use a git version of ceres-solver together with a [Nvidia cudss](https://developer.nvidia.com/cudss) installation to accelerate the large area tracing and the inpainting/flattening.
 
 ## Ink detection
 
-Ink detection is based on the original GP ink detection (which could also be used instead).
+Ink detection is based on the original GP ink detection (which could also be used instead).<br>
 The fork is found at https://github.com/hendrikschilling/Vesuvius-Grandprize-Winner and installation requirements are unchanged.
 
 # Misc
 
 ## HW/SW configuration
-All steps above following the volume surface prediction were achieved using:
+All steps below following the volume surface prediction (so step 2-7) were achieved using:
+
 - AMD 5950x
 - Nvidia 3090
 - 64GB DDR4 RAM + 256GB swap
 - Transcend TS2TMTE220S SSD
 - a collection of HDDs in a BTRFS RAID1
+
 SW environment:
+
 - Cuda 12.7
 - cudss 12.5.4
 - pytorch 2.5.4
@@ -136,6 +145,7 @@ Many tools output information on the command line and store additional debugging
 # Process Overview
 
 The overall process consists of the following steps:
+
 1. surface prediction volume generation
 2. patch collection seeding
 3. patch collection expansion
@@ -152,7 +162,17 @@ The overall process consists of the following steps:
 The tracer and the rendering require ome-zarr volumes with a meta.json file according to the VC requirements:
 For example:
 ```
-{"height":7888,"max":65535.0,"min":0.0,"name":"thename","slices":14376,"type":"vol","uuid":"theuuid","voxelsize":7.91,"width":8096, "format":"zarr"}
+{
+    "height":7888,
+    "max":65535.0,
+    "min":0.0,
+    "name":"thename",
+    "slices":14376,"type":"vol",
+    "uuid":"theuuid",
+    "voxelsize":7.91,
+    "width":8096,
+    "format":"zarr"
+}
 ```
 For the submission this volume was used for rendering:
 https://dl.ash2txt.org/community-uploads/james/Scroll1/Scroll1_8um.zarr/
@@ -243,10 +263,12 @@ The patches can be inspected with VC3D by placing them in the paths directory of
 
 ## 4. iterative surface tracing
 This step will finally create larger connected surfaces. The large surface tracer generates a single surface by tracing a "consensus" surface from the patches generated earlier. This processed can be influenced by annotating patches in several ways which allows to guide the tracer to avoid errors. Hence the process looks like this:
+
 1. pick a seed patch
 2. generate a trace
 3. check for errors
 4. annotation
+
 and repeat step 2-4 or 1-4 several times
 
 Keep previous trace rounds around as the fusion step can later join multple traces and problematic areas of a trace can be masked out. A mask can be generated for example with VC3D, or by using any 8-bit grayscale image with the same aspect ratio as one of the tiffxyz channels.
@@ -254,10 +276,12 @@ Keep previous trace rounds around as the fusion step can later join multple trac
 ### 4.1 Pick a seed patch
 
 By placing patches generated in the last step into the paths directory of the volpkg VC3D allows to inspect them. VC3D can also display the prediction ome-zarrs, which, together with fiber continuity allows to quickly scan for obvious errors. Useful tools for navigation:
+
 - ctrl-click in any slice view to focus and slice on the clicked point
 - shift-click to place a red POI
 - shift-ctrl-click to place a blur POI
 - filter by focus point & filter by POIs to narrow down the choice of patches
+
 For the FASP submission seeds were picked by placing POIs on the outermost end of the outermost GP segement and selecting a large mostly error free patch from there.
 Additional runs were done by selecting points from previous runs, both from the innermost area, to trace in reverse (so problem areas result in slightly different gaps) and starting just before a problem area was observed in a previous trace (to see if the annotations did help).
 If a patch is selected in VC3D its path is printed on the terminal which allows to just copy that path to generate a trace command.
@@ -280,6 +304,8 @@ Using for the finall passes these settings:
         "consensus_limit_th" : 2
 }
 ```
+
+
 - flip_x determines the direction of the trace (it always grows to the right, but that can go to the inside or outside of the scroll, depending on seed location).
 - global steps per window: numer of global optimization steps per moving window. The tracer operates in a moving window fasion, once the global optimization steps were run per window and no new corners were added the window is moved to the right and the process repeated. At the beginning use 0 global steps to get a fast and long trace and see if there are any coarse errors.
 - consensus_default_th: lowest number of inliers (patch "supports") required per corner to be considered an inlier. Note that a single well connected patch gives more than a single support to a corner (so this is not the number of surfaces). Maximum of 20 to get only well connected patches, minimum of 6 before there are lot of errors.
@@ -302,15 +328,17 @@ It is useful to go back in the generated dbg surfaces to find the first time an 
 
 VC3D allows to annotate patches as approved, defective, and to edit a patch mask which allows masking out areas of a patch that are problematic.
 For the submission (where manual input time is quite limited) these were used like this:
-**defective**
+
+**defective**<br>
 A patch can be marked as "defective" by checking the checkbox in the VC3D side panel.
 This is fast but not very useful as most patches have some good areas and also will have some amount of errors. Errors only matter if they fall at the same spot in multiple patches, so marking a whole patch as defective, which will the tracer ignore it completely is not necessary. Only on patch was marked defective for the FASP submission.
 
-**mask**
+**mask**<br>
 most used annotation and it can be performed quite quickly (1-3 patches per minute).
 By clicking on the "edit segment mask" button a mask image will be generated and saved as .tif in the segments directory. Then the systems default application for the filetype .tif will be launched. For the submission GIMP was used. The mask file is a multi-layer tif file where the lowest layer is the actual binary mask and the second layer is the rendered surface using the currently selected volume.
 To streamline the process for the FASP submission the following approach was used:
 Given an error (sheet jump) found in step 4.3.
+
 - place one POI on one side of the jump and a second on the other.
 - select "filter by POIs" to get a list of patches who contain this sheet jump, this probably list about 5-20 patches
 - press "edit segment mask"
@@ -318,18 +346,21 @@ Given an error (sheet jump) found in step 4.3.
 - click on the layer transparency to make the upper layer around 50% transparent
 - your default tool should be the pencil tool with black as color and a size of around 30-100 pixels. Use it to mask out offending areas on the lower layer (the actual mask), refer back to VC3D if you are unsure.
 - save the mask by clicking "File->overwrite mask.tif"
+
 With this process a mask can be generated using less than 10 clicks. This is the main annotation method used for the submission (due to the fast iteration time) at a total of 243 masks generated which should take about 2 hours.
 
-**approved**
+**approved**<br>
 Checking the approved checkbox will mark a patch as manually "approved" which means the tracer will consider mesh corners coming from such a patch as good without checking for other patches. So it is important that such a patch is error free (which is not necessary when creating a mask to only remove a problem area without checking "approved").
 So the whole patch needs to be checked or potentially problematic areas need to be masked out generously, as any error in an approved patch will translate 1:1 to an error in the final trace. For this reason this feature was used sparingly for the submission and only used where otherwise the trace would not continue at all.
 If a whole patch needs to be checke the following process was used:
+
 - ctrl-click on a point in the area that shall be "correct".
 - follow along the two segment slices and place blue POIs every at an interval whereever you are sure the trace follows the correct sheet.
 - place red POIs where errors occur
 this process will place a "cross" of two lines which show the good/bad areas of the patch
 - ctrl-click to focus on a point on/between blue points to genrate a second line, this way a whole grid of points is genrated
 - use this grid as orientation to create a mask in GIMP
+
 This process could take anywhere from 5-30minutes, therefor it was used very sparingly for the submission (6 times) and not to generate a large approved patch but just to bridge a bad spot, areas that weren't necessary to bridge a gap were simply not checked and masked out to save time.
 So generate these approved patches took around 1h in total for the submission.
 
@@ -573,7 +604,7 @@ Currently the first surface used in vc_fill_quadmesh need to cover the whole inp
 The model used in all surface optimizations above is to have an output surface and the quadmesh corners of this output surface have attached constraints, like the 2D location of that corner in a base surface or patch. This is not well behaved in some cases because the same underlying surface point can be referenced by different corners and corners can "wander" off the base surface. Instead keep geometry constrains on the output corners but for the surface relation invert the mapping and have the base surface corners reference the 2D surface location on the output surface. This should make the optimization more well behaved and avoids some geometric issues like hole closing an surface shrinking in the global optimization.
 
 ## Winding constraints and annotations in 3D
-The winding estimation used for the fusion works like and is a very simple algorithm. The surface tracers (patch and larger area tracer) have a hard time dealing with sheet jumps as they only rely on probabilities of errors being less likely to agree than correct surfaces an assumption which doesn't always hold true. So the idea is to apply the surface winding diffusion in 3D by leveraging the surface predictions as well as manual labels. Labels will basically be: These two points are N winds apart, or these points are the same wind. This can then be used to diffuse a winding assignment along the binary surface prediction in the 3D volume and only after this step the surface tracing is performed. This has a few benefitial properties as gaps will be automatically closed (becuase if you know where wind 1 and 3 is a diffusion of these labels will automatically produce the intermediate 2 somewhere between these labels) and is more natural to annotate compared to masking patches containing errors. The job of the surface traces is thus much simplified as they do not need to cope with ambiguities but can actually focus on tracing a high quality surface and annotations should be doable in less time for larger volumes. Additionall fiber annotations and predictions can also be incorporated naturally and a more advanced implementation might make use of a [field based optimization](https://discord.com/channels/1079907749569237093/1312623336739831878/1323487224293101568).
+The winding estimation used for the fusion works like and is a very simple algorithm. The surface tracers (patch and larger area tracer) have a hard time dealing with sheet jumps as they only rely on probabilities of errors being less likely to agree than correct surfaces an assumption which doesn't always hold true. So the idea is to apply the surface winding diffusion in 3D by leveraging the surface predictions as well as manual labels. Labels will basically be: These two points are N winds apart, or these points are the same wind. This can then be used to diffuse a winding assignment along the binary surface prediction in the 3D volume and only after this step the surface tracing is performed. This has a few benefitial properties as gaps will be automatically closed (becuase if you know where wind 1 and 3 is a diffusion of these labels will automatically produce the intermediate 2 somewhere between these labels) and is more natural to annotate compared to masking patches containing errors. The job of the surface traces is thus much simplified as they do not need to cope with ambiguities but can actually focus on tracing a high quality surface and annotations should be doable in less time for larger volumes. Additional fiber annotations and predictions can also be incorporated naturally and a more advanced implementation might make use of a [field based optimization](https://discord.com/channels/1079907749569237093/1312623336739831878/1323487224293101568).
 
 ## Surface normal estimation
 In various stages of the tracing and inpainting surfaces corners are produced from neighboring corners. Train a normal estimating model similiar to the current nnunet but trained on output normal vectors instead of a binary classification, so even in areas where the surface location is uncertain normal constraints can be used to provide some sensible structure to the surface and avoid coarse errors.
