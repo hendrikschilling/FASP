@@ -38,26 +38,26 @@ data prep
 The patch seeding will trace small (4cm^2 by default) patches from the surface prediction provided as ome-zarr. Detailed documentation is available [in this thread](https://discord.com/channels/1079907749569237093/1312490723001499808).
 The command used for the submission is:
 
-~~~
+```
 time seq 1 1000 |  xargs -i -P 32 bash -c 'nice ionice vc_grow_seg_from_seed /path/to/gp-prediction-ome-zarr /path/to/patch-collection params_grow_seed.json'
-~~~
+```
 
 params_grow_seed.json:
-~~~
+```
 {
     "cache_root" : "/path/to/cache",
     "generations" : 200,
     "min_area_cm" : 0.3,
     "thread_limit" : 1
 }
-~~~
+```
 
 runtime:
-~~~
+```
 real    52m51.294s
 user    1487m27.790s
 sys     35m10.965s
-~~~
+```
 
 This process generated an initial set of 775 patches.
 
@@ -68,14 +68,14 @@ The patche expansion step also documented [here](https://discord.com/channels/10
 
 The commands used where: 
 
-~~~
-time seq 1 10000000 |  xargs -i -P 32 bash -c 'nice ionice vc_grow_seg_from_seed /path/to/gp-prediction-ome-zarr /path/to/patch-collection params_expand_overlap.json'
-time seq 1 10000000 |  xargs -i -P 16 bash -c 'nice ionice vc_grow_seg_from_seed /path/to/gp-prediction-ome-zarr /path/to/patch-collection params_expand_overlap.json'
-time seq 1 1000000000 |  xargs -i -P 16 bash -c 'nice ionice vc_grow_seg_from_seed /path/to/gp-prediction-ome-zarr /path/to/patch-collection params_expand_overlap.json'
-~~~
+```
+time seq 1 10000000 |  xargs -i -P 32 bash -c 'nice ionice vc_grow_seg_from_seed /path/to/gp-prediction-ome-zarr /path/to/patch-collection params_expand_overlap.json || true'
+time seq 1 10000000 |  xargs -i -P 16 bash -c 'nice ionice vc_grow_seg_from_seed /path/to/gp-prediction-ome-zarr /path/to/patch-collection params_expand_overlap.json || true'
+time seq 1 1000000000 |  xargs -i -P 16 bash -c 'nice ionice vc_grow_seg_from_seed /path/to/gp-prediction-ome-zarr /path/to/patch-collection params_expand_overlap.json || true'
+```
 
 with params_expand_overlap.json:
-~~~
+```
 {
     "cache_root" : "/path/to/cache",
     "tgt_overlap_count" : 10,
@@ -84,17 +84,17 @@ with params_expand_overlap.json:
     "thread_limit" : 1,
     "mode" : "expansion"
 }
-~~~
+```
 
 this resulted in a growing number of patches:
-~~~
+```
 7817
 10444
 17980
-~~~
+```
 
 And the following runtimes:
-~~~
+```
 real    259m36.492s
 user    7128m20.478s
 sys     257m29.490s
@@ -106,7 +106,7 @@ sys     110m42.635s
 real    215m33.051s
 user    2890m24.039s
 sys     346m59.649s
-~~~
+```
 
 The patches can be inspected with VC3D by placing them in the paths directory of the volpkg. Symlinks can also be used.
 
@@ -134,12 +134,12 @@ If a patch is selected in VC3D its path is printed on the terminal which allows 
 ### 4.2. generate a trace
 
 The traces for the submission were generated using this command:
-~~~
+```
 time OMP_WAIT_POLICY=PASSIVE OMP_NESTED=FALSE nice vc_grow_seg_from_segments /path/to/prediction-volume /path/to/patch-collection /path/to/output params.json /path/to/seed/patch
-~~~
+```
 
 Using for the finall passes these settings:
-~~~
+```
 {
         "flip_x" : false,
         "global_steps_per_window" : 3,
@@ -147,7 +147,7 @@ Using for the finall passes these settings:
         "consensus_default_th" : 10,
         "consensus_limit_th" : 2
 }
-~~~
+```
 - flip_x determines the direction of the trace (it always grows to the right, but that can go to the inside or outside of the scroll, depending on seed location).
 - global steps per window: numer of global optimization steps per moving window. The tracer operates in a moving window fasion, once the global optimization steps were run per window and no new corners were added the window is moved to the right and the process repeated. At the beginning use 0 global steps to get a fast and long trace and see if there are any coarse errors.
 - consensus_default_th: lowest number of inliers (patch "supports") required per corner to be considered an inlier. Note that a single well connected patch gives more than a single support to a corner (so this is not the number of surfaces). Maximum of 20 to get only well connected patches, minimum of 6 before there are lot of errors.
@@ -210,9 +210,9 @@ Traces in both directions (inward and outward) can be combined.
 ## 5.1. winding number assignment
 
 First step in the fusion process is generating relative winding numbers of each trace by running:
-~~~
+```
 OMP_WAIT_POLICY=PASSIVE OMP_NESTED=FALSE vc_tifxyz_winding /path/to/trace
-~~~
+```
 Which will generate some debug images and the two files "winding.tif" and "winding_vis.tif".
 Check the winding vis for errors, it should just be a smooth continous rainbow going from left to right, if it isn't there were some errors in the source trace that weren't masked out. Mask those errors in the source trace and re-run winding estimation until it works, this should not generally be necessary.
 
@@ -222,12 +222,12 @@ The winding estimation should take about 10s.
 ## 5.2. joint fusion and inpainting
 
 The traces (and even the patches) generated in the previous steps could directly be used for ink detection, and for debugging and fast iterations this should definitely be done. However a high qality and filled surface can be achived by running
-~~~
+```
 OMP_WAIT_POLICY=PASSIVE OMP_NESTED=FALSE time nice\
 vc_fill_quadmesh params.json /path/to/trace1/ /path/to/trace1/winding.tif 1.0 /path/to/trace2/ /path/to/trace2/winding.tif 1.0
-~~~
+```
 with an arbitrary number of traces. Note that the first trace will be used as the seed an it will also define the size of the output trace and will generate normal constraints, so it should be the longest and most complete. The number after the trace is the weight of the trace when generating the surface, in all test a weight of 1.0 was used and for the submission this params.json:
-~~~
+```
 {
     "trace_mul" : 5,
     "dist_w" : 1.5,
@@ -239,47 +239,57 @@ with an arbitrary number of traces. Note that the first trace will be used as th
     "inpaint_back_range" : 60,
     "opt_w" : 4
 }
-~~~
+```
 Takes around 40 minutes:
-~~~
+```
 13653.19user 118.87system 39:56.61elapsed 574%CPU (0avgtext+0avgdata 1945672maxresident)k
 147992inputs+2594872outputs (9major+8252759minor)pagefaults 0swaps
-~~~
+```
 Note that traces that differ in direction _can_ be used, the winding estimator will automatically flip the input winding number and offset it so the different traces align.
 
 ## 6. rendering
 
 Using vc_render_tifxyz to render 21 layers from the trace generated in the last step at half scale from the half scale ome-zarr:
-~~~
+```
 OMP_WAIT_POLICY=PASSIVE OMP_NESTED=FALSE time nice \
 vc_render_tifxyz /path/to/volume/ome-zarr /output/path/%02d.tif /path/to/trace 0.5 1 21
-~~~
+```
 
 Which takes about half an hour:
-~~~
+```
 4629.46user 12054.06system 31:08.21elapsed 893%CPU (0avgtext+0avgdata 13987244maxresident)k
 47117424inputs+17606296outputs (2major+76947037minor)pagefaults 0swaps
-~~~
+```
 
 ## 7. ink prediction
 
 The ink detection is using the accelerated version documented [here]() at a slightly reduced quality to make processing times bearable, and is using the default settings of:
 - half resolution rendering (from half scale ome-zarr subdirectory)
 - using 21 layers
-~~~
+```
 time python fast_inference_timesformer.py --layer_path /path/to/rendered-slices --model_path timesformer_wild15_20230702185753_0_fr_i3depoch=12.ckpt --out_path fasp.jpg --quality 1 --compile --reverse
-~~~
+```
 
 Which yields the final ink detection image at fasp.jpg.
-~~~
+```
 real    29m30.555s
 user    47m1.576s
 sys     18m55.119s
-~~~
+```
 
 If no ink is being detected maybe the layer direction needs to be flipped which can be achived with the --reverse flag.
 
-# Installation and Dependenceis
+# Installation and Dependencies
+
+## 
+
+## VC3D & tracing tools
+Code is available here: TODO
+Please refer to the refer to the Dockerfile "jammy.Dockerfile" to see a list of all dependencies or to build a docker image based on ubuntu 22.04.
+In addition if you want to reproduce
+
+## Ink detection
+
 ## Surface Prediction
 ## VC3D
 
