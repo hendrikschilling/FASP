@@ -101,7 +101,7 @@ The ink detection is based on the GP ink detection, with the code adapted to pro
 To achieve the submission in the allowed time several tradeoffs were made. Depending on the goal it is possible choose a different quality/compute/human-time tradeoff:
 
 - patch expansion was run only with 16 instead of 32 threads to have capacity for other tasks at that time, also as long as fast shared network storage is available this could be processed in a distributed manner
-- ink detecton accuracy: Quality was set to "1", the ink detection code has higher quality modes available, but time requirements rise quadratic.
+- ink detecton accuracy: Quality was set to "1", the ink detection code has higher quality modes available, but time requirements rise quadratically.
 - rendering resoution: to limit rendering times and RAM requirements half resolution source volumes and render resolution was used and then upscaled on-the-fly in the ink detection. This reduces ink detection quality slightly.
 - Annotation time: If more human input is acceptable most of the inpainted areas could be raised to the high quality standard of the trace. If the annotation is confined to regions of interest after an initial ink detection run annotations times should not explode too much.
 
