@@ -1,6 +1,6 @@
 # Intro
 
-This repo serves to document a submission for the first automated segmentation price of the vesuvius challenge 2024.
+This repo documents a submission for the first automated segmentation price of the vesuvius challenge 2024 .
 It serves as a documentation on how to run the full automated segmentation pipeline and a decription of the algorithms and tools used.
 
 # Links & Repos
@@ -14,6 +14,7 @@ The final data is available at:
 https://dl.ash2txt.org/community-uploads/waldkauz/fasp/
 
 Overview:
+
 - /fasp_fill_hr_20241230145834485 the final submission surface in tiffxyz format
 ~~~- /ink.jpg - the ink detection of the submitted surface, aligns with the surface xyz pixels by scaling the xyz coords by 1.25x (ink is sampled at 1/16 and the surface at 1/20)~~~ not yet uploaded as per submission form hint
 - /layers - layer 0 - 21 where 10 is the central layer not offset against the surface, they are at half of full voxel resolution so 10:1 against the surface xyz tiffs and 8:1 against the ink detection
@@ -27,6 +28,8 @@ Overview:
 - vc_tifxyz_winding: estimate consistent relative winding numbers for a trace
 - vc_fill_quadmesh: inpainting and flattening of large traces
 - vc_render_tifxyz: fast rendering of huge traces (tested with sizes surpassing the jpg img size limit!)
+- GP ink detection modified for faster and lower memory inference: https://discord.com/channels/1079907749569237093/1315006782191570975
+The tools without a link are described in more detail lower in this document.
 
 # FASP Criteria
 
@@ -81,7 +84,39 @@ To achieve the submission in the allowed time several tradeoffs were made. Depen
 - rendering resoution: to limit rendering times and RAM requirements half resolution source volumes and render resolution was used and then upscaled on-the-fly in the ink detection. This reduces ink detection quality slightly.
 - Annotation time: If more human input is acceptable most of the inpainted areas could be raised to the high quality standard of the trace. If the annotation is confined to regions of interest after an initial ink detection run annotations times should not explode too much.
 
-# Overview
+# Installation and Dependencies
+
+## Surface Volume Predicitions
+
+Please refer to *Segmenting_Scroll_Surfaces.pdf*.
+
+## VC3D & tracing tools
+The code is available at: https://github.com/hendrikschilling/volume-cartographer under the dev-next branch.
+Please refer to the refer to the "jammy.Dockerfile" to see a list of all dependencies or to build a docker image based on ubuntu 22.04.
+In addition it is recommended to use a git version of ceres-solver together with a [Nvidia cudss](https://developer.nvidia.com/cudss) installation to accelerate the large area tracing and the inpainting/flattening.
+
+## Ink detection
+
+Ink detection is based on the original GP ink detection (which could also be used instead).
+The fork is found at https://github.com/hendrikschilling/Vesuvius-Grandprize-Winner and installation requirements are unchanged.
+
+# Misc
+
+## HW/SW configuration
+All steps above following the volume surface prediction were achieved using:
+- AMD 5950x
+- Nvidia 3090
+- 64GB DDR4 RAM + 256GB swap
+- Transcend TS2TMTE220S SSD
+- a collection of HDDs in a BTRFS RAID1
+SW environment:
+- Cuda 12.7
+- cudss 12.5.4
+- pytorch 2.5.4
+- Arch Linux
+
+
+# Process Overview
 
 The overall process consists of the following steps:
 1. surface prediction volume generation
@@ -92,23 +127,22 @@ The overall process consists of the following steps:
 6. rendering
 7. ink prediction
 
-
-
 # Input Data
 
 ## Surface Prediction
 
-## Tracing to Ink Detection
+## Patch generation to Ink Detection (step 2-7)
 The tracer and the rendering require ome-zarr volumes with a meta.json file according to the VC requirements:
 For example:
 ```
 {"height":7888,"max":65535.0,"min":0.0,"name":"thename","slices":14376,"type":"vol","uuid":"theuuid","voxelsize":7.91,"width":8096, "format":"zarr"}
 ```
-For the submission this volume was used:
+For the submission this volume was used for rendering:
 https://dl.ash2txt.org/community-uploads/james/Scroll1/Scroll1_8um.zarr/
 
-# Guide
-This guide serves to document the steps taken to achieve the FASP submission without diverting too much into all the additional options the tools provide.
+# Pipeline Documentation
+This section serves to document the steps taken to achieve the FASP submission without diverting too much into all the additional options the tools provide.
+The tools are detailed later in this document or at the respective link if they were published before.
 
 ## 1. Inference
 
@@ -215,7 +249,8 @@ If a patch is selected in VC3D its path is printed on the terminal which allows 
 
 The traces for the submission were generated using this command:
 ```
-time OMP_WAIT_POLICY=PASSIVE OMP_NESTED=FALSE nice vc_grow_seg_from_segments /path/to/prediction-volume /path/to/patch-collection /path/to/output params.json /path/to/seed/patch
+time OMP_WAIT_POLICY=PASSIVE OMP_NESTED=FALSE nice \
+vc_grow_seg_from_segments /path/to/prediction-volume /path/to/patch-collection /path/to/output params.json /path/to/seed/patch
 ```
 
 Using for the finall passes these settings:
@@ -360,33 +395,55 @@ sys     18m55.119s
 
 If no ink is being detected maybe the layer direction needs to be flipped which can be achived with the --reverse flag.
 
-# Installation and Dependencies
+# Detailed Documentation
 
-## Surface Volume Predicitions
+## vc_grow_seg_from_segments
 
-Please refer to *Segmenting_Scroll_Surfaces.pdf*.
+Given a collection of patches generated by vc_grow_seg_from_seed, this step combines patches to form a large connected surface. Usage within the pipeline is described above, the tracer can make use of annotations to enable human supervision.
+### Usage
 
-## VC3D & tracing tools
-The code is available at: https://github.com/hendrikschilling/volume-cartographer under the dev-next branch.
-Please refer to the refer to the "jammy.Dockerfile" to see a list of all dependencies or to build a docker image based on ubuntu 22.04.
-In addition it is recommended to use a git version of ceres-solver together with a [Nvidia cudss](https://developer.nvidia.com/cudss) installation to accelerate the large area tracing and the inpainting/flattening.
+```
+time OMP_WAIT_POLICY=PASSIVE OMP_NESTED=FALSE nice \
+vc_grow_seg_from_segments /path/to/prediction-volume /path/to/patch-collection /path/to/output params.json /path/to/seed/patch
+```
+params.json example:
+```
+{
+        "flip_x" : false,
+        "global_steps_per_window" : 3,
+        "step" : 10,
+        "consensus_default_th" : 10,
+        "consensus_limit_th" : 2
+}
+```
 
-## Ink detection
+### Description
+The tracer will trace a surface by greedily expanding quadcorners for a mesh with a step size of src_step times step voxels.
+It will at intervals perform a global optimization step to make the greedy expansion not drift too far from a good solution.
+The search and optimization happen within a large window which is a fixed size at the right side of the trace. So new corners will be added only within this window and the trace will only be optimized within this window, which allows tracing large surfaces at linear time complexity (roughly).
+For each new corner it will count the number of data points that support such a corner and if the value is above a threshold it will be added to the trace. By default the threshold will go down to *consensus_default_th* and only if otherwise an expansion to the right is not possible will the tracer consider corners down to *consensus_limit_th*.
 
-Ink detection is based on the original GP ink detection (which could also be used instead).
-The fork is found at https://github.com/hendrikschilling/Vesuvius-Grandprize-Winner and installation requirements are unchanged.
+### Parameters
+Parameters:
 
-# Misc
+- flip_x : wether to flip the trace in x direction. The tracer will always grow to the right, this value decides wether that means to the outside or to the inside
+- src_step: default 20, must be the correct step size of the patch generation!
+- max_width: tgt width - actual width is max_width/step*src_step
+- step: step size in src_step units (so actual step size is step times src_step voxels)
+- consensus_default_th: regular consensus threshold (see Description above)
+- consensus_limit_th: minimum consensus threshold (see Description above)
 
-## HW/SW configuration
-All steps above following the volume surface prediction were achieved using:
-- AMD 5950x
-- Nvidia 3090
-- 64GB DDR4 RAM + 256GB swap
-- Transcend TS2TMTE220S SSD
-- a collection of HDDs in a BTRFS RAID1
-SW environment:
-- Cuda 12.7
-- cudss 12.5.4
-- pytorch 2.5.4
-- Arch Linux
+## vc_tifxyz_winding
+
+
+estimate consistent relative winding numbers for a trace
+
+## vc_fill_quadmesh
+inpainting and flattening of large traces
+## vc_render_tifxyz
+fast rendering of huge traces (tested with sizes surpassing the jpg img size limit!)
+
+# Code Documentation
+
+
+# Algorithm Descriptions
