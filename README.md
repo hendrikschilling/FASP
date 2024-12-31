@@ -3,7 +3,7 @@
 This repo documents a submission for the first automated segmentation price of the vesuvius challenge 2024 .
 It serves as a documentation on how to run the full automated segmentation pipeline and a decription of the algorithms and tools used.
 
-# Links & Repos
+# Links & Repos & Docs
 
 ## Surface Volume Prediction
 - [Segmenting_Scroll_Surfaces.pdf](Segmenting_Scroll_Surfaces.pdf) (within this repo)
@@ -33,7 +33,7 @@ Overview:
 
 # Tools & Contributions
 
-- volume surface prediciton: See [Suface Volume Predicion at the top of this doc](#surface-volume-prediction)
+- volume surface prediciton: compre [Surface Volume Predicion links](#surface-volume-prediction)
 - vc_grow_seg_from_seed: Generate patches in a volume prediction, previously released and documented: [thread](https://discord.com/channels/1079907749569237093/1162822163171119194/threads/1312490723001499808)
 - vc_grow_seg_from_segments: trace larger surfaces by searching for consensus points on collections of surface patches, this can trace very large continuous surfaces and represents the core part of this submission
 - vc_tifxyz_winding: estimate consistent relative winding numbers for a trace
@@ -99,7 +99,7 @@ To achieve the submission in the allowed time several tradeoffs were made. Depen
 
 ## Surface Volume Predicitions
 
-Please refer to *Segmenting_Scroll_Surfaces.pdf* and https://github.com/bruniss/nnUNet_personal_extended
+Please refer to [Surface Volume Predicion links at the beginning of this document.](#surface-volume-prediction).
 
 ## VC3D & tracing tools
 The code is available at: https://github.com/hendrikschilling/volume-cartographer under the dev-next branch.
@@ -165,7 +165,7 @@ The tools are detailed later in this document or at the respective link if they 
 
 ## 1. Inference
 
-The volume prediction is documented in *Segmenting_Scroll_Surfaces.pdf* and https://github.com/bruniss/nnUNet_personal_extended
+The volume prediction is documented at [Surface Volume Predicion links](#surface-volume-prediction).
 
 ## 2. patch collection seeding
 The patch seeding will trace small (4cm^2 by default) patches from the surface prediction provided as ome-zarr. Detailed documentation is available [in this thread](https://discord.com/channels/1079907749569237093/1312490723001499808).
