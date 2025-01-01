@@ -21,7 +21,7 @@ The final data is available at:
 https://dl.ash2txt.org/community-uploads/waldkauz/fasp/
 
 - /fasp_fill_hr_20241230145834485 the final submission surface in tiffxyz format
-- ~~/ink.jpg - the ink detection of the submitted surface, aligns with the surface xyz pixels by scaling the xyz coords by 1.25x (ink is sampled at 1/16 and the surface at 1/20)~~ not yet uploaded as per submission form hint
+- ~~/ink.jpg~~ - the ink detection of the submitted surface, aligns with the surface xyz pixels by scaling the xyz coord image by 1.25x (ink is sampled at 1/16 and the surface at 1/20) *not yet uploaded as requested by the FASP submission form*
 - /layers - layer 0 - 21 where 10 is the central layer not offset against the surface, they are at half of full voxel resolution so 10:1 against the surface xyz tiffs and 8:1 against the ink detection
 - /masks - additional information on the surface quality, a value of 0 in the state.tif means no surface, 100 - high quality, 80 - infilled
 
@@ -95,6 +95,7 @@ Most areas show low distortion, some distortion occurs around inpainted areas, e
 The ink detection is based on the GP ink detection, with the code adapted to produce smaller files much faster and with lower memory requirements
 
 ![image](imgs/ink_censored.jpg)
+(ink detection not yet published :-P)
 
 ## Tradeoffs
 
@@ -344,6 +345,9 @@ It is useful to go back in the generated debug surfaces to find the first time a
 VC3D allows to annotate patches as approved, defective, and to edit a patch mask which allows masking out areas of a patch that are problematic.
 For the submission (where manual input time is quite limited) these were used like this:
 
+
+![image](imgs/vc3d_annotation.jpg)
+
 **defective**<br>
 A patch can be marked as "defective" by checking the checkbox in the VC3D side panel.
 This is fast but not very useful as most patches have some good areas and also will have some amount of errors. Errors only matter if they fall at the same spot in multiple patches, so marking a whole patch as defective, which will the tracer ignore it completely is not necessary. Only on patch was marked defective for the FASP submission.
@@ -362,7 +366,7 @@ Given an error (sheet jump) found in step 4.3.
 - your default tool should be the pencil tool with black as color and a size of around 30-100 pixels. Use it to mask out offending areas on the lower layer (the actual mask), refer back to VC3D if you are unsure.
 - save the mask by clicking "File->overwrite mask.tif"
 
-With this process a mask can be generated using less than 10 clicks. This is the main annotation method used for the submission (due to the fast iteration time) at a total of 243 masks generated which should take about 2 hours.
+With this process a mask can be generated using less than 10 clicks. This is the main annotation method used for the submission (due to the fast iteration time) at a total of 237 masks generated which should take about 2 hours.
 
 ![image](imgs/annotation1.jpg)
 
@@ -401,6 +405,8 @@ Check the winding vis for errors, it should just be a smooth continuous rainbow 
 
 Copy the winding.tif and wind_vis.tif to the traces storage directory so its all in one place and ready for the next step.
 The winding estimation should take about 10s.
+
+![image](imgs/wind_vis.png)
 
 ## 5.2. joint fusion and inpainting
 
@@ -616,10 +622,10 @@ The winding estimation works by:
 # Outlook / Future Work
 Big and small ideas for improving upon this pipeline.
 
-### fusion without a reference surface and improve flattening
+## fusion without a reference surface and improve flattening
 Currently the first surface used in vc_fill_quadmesh need to cover the whole inpainted area and guides the normal constraints, by comparing all supplied surfaces against each other (instead of just against the first) and fusing the normal estimates (need to optimize cause winding number can be slightly offset) more surface configurations could be fused.
 
-## reverse surface constraints
+## inverted surface constraints
 The model used in all surface optimizations above is to have an output surface and the quadmesh corners of this output surface have attached constraints, like the 2D location of that corner in a base surface or patch. This is not well behaved in some cases because the same underlying surface point can be referenced by different corners and corners can "wander" off the base surface. Instead keep geometry constrains on the output corners but for the surface relation invert the mapping and have the base surface corners reference the 2D surface location on the output surface. This should make the optimization more well behaved and avoids some geometric issues like hole closing an surface shrinking in the global optimization.
 
 ## winding constraints and annotations in 3D
