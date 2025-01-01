@@ -1,7 +1,7 @@
 # Overview
 
 This repo documents a submission for the first automated segmentation price of the vesuvius challenge 2024 .
-It serves as a documentation on how to run the full automated segmentation pipeline and a decription of the algorithms and tools used.
+It serves as a documentation on how to run the full automated segmentation pipeline and a description of the algorithms and tools used.
 
 # Links & Repos & Docs
 
@@ -13,7 +13,7 @@ It serves as a documentation on how to run the full automated segmentation pipel
 ## Tracing and ink detection
 - this documentation: https://github.com/hendrikschilling/FASP
 - surface tracing and inspection: https://github.com/hendrikschilling/volume-cartographer (branch dev-next)
-- faster ink detection: https://github.com/hendrikschilling/Vesuvius-Grandprize-Winner
+- faster ink detection: https://github.com/hendrikschilling/Vesuvius-Grandprize-Winner [thread](https://discord.com/channels/1079907749569237093/1315006782191570975)
 
 # Submission Data
 
@@ -33,7 +33,7 @@ https://dl.ash2txt.org/community-uploads/waldkauz/fasp/
 
 # Tools & Contributions
 
-- volume surface prediciton: compare [Surface Volume Predicion links](#surface-volume-prediction)
+- volume surface prediction: compare [Surface Volume Predicion links](#surface-volume-prediction)
 - vc_grow_seg_from_seed: Generate patches in a volume prediction, previously released and documented: [thread](https://discord.com/channels/1079907749569237093/1162822163171119194/threads/1312490723001499808)
 - vc_grow_seg_from_segments: trace larger surfaces by searching for consensus points on collections of surface patches, this can trace very large continuous surfaces and represents the core part of this submission
 - vc_tifxyz_winding: estimate consistent relative winding numbers for a trace
@@ -58,7 +58,7 @@ Compute times were split approximately like this (time in minutes):
 - patch expansion	599
 - repeated traces	720
 - winding estimation	1
-- Inpaint & flattening	40
+- inpaint & flattening	40
 - render	31
 - ink	30
 
@@ -70,7 +70,7 @@ Execution times are documented per task in the relevant sections below.
 
 Human input was (apart from starting prepared commands and file operations) limited to 4 hours.<br>
 The time was used to create 243 annotations, the detailed process is described later in this document (compare step 4.4 Annotation).<br>
-The time split is appoximately (minutes):
+The time split is approximately (minutes):
 
 - 237 coarse masks: 119
 - 6 fine masks: 60
@@ -98,11 +98,11 @@ The ink detection is based on the GP ink detection, with the code adapted to pro
 
 ## Tradeoffs
 
-To achieve the submission in the allowed time several tradeoffs were made. Depending on the goal it is possible choose a different quality/compute/human-input tradeoff:
+To achieve the submission in the allowed time several trade-offs were made. Depending on the goal it is possible choose a different quality/compute/human-input tradeoff:
 
 - patch expansion was run only with 16 instead of 32 threads to have capacity for other tasks at that time, also as long as fast shared network storage is available this could be processed in a distributed manner
-- ink detecton accuracy: Quality was set to "1", the ink detection code has higher quality modes available, but time requirements rise quadratically.
-- rendering resoution: to limit rendering times and RAM requirements half resolution source volumes and render resolution was used and then upscaled on-the-fly in the ink detection. This reduces ink detection quality slightly.
+- ink detection accuracy: Quality was set to "1", the ink detection code has higher quality modes available, but time requirements rise quadratically.
+- rendering resolution: to limit rendering times and RAM requirements half resolution source volumes and render resolution was used and then upscaled on-the-fly in the ink detection. This reduces ink detection quality slightly.
 - Annotation time: If more human input is acceptable most of the inpainted areas could be raised to the high quality standard of the trace. If the annotation is confined to regions of interest after an initial ink detection run annotations times should not explode too much.
 
 # Installation and Dependencies
@@ -126,7 +126,7 @@ The fork is found at https://github.com/hendrikschilling/Vesuvius-Grandprize-Win
 # Misc
 
 ## HW/SW configuration
-All steps below following the volume surface prediction (so step 2-7) were achieved using:
+All steps below following the volume surface prediction (step 2-7) were achieved using:
 
 - AMD 5950x
 - Nvidia 3090
@@ -143,9 +143,9 @@ SW environment:
 
 ## Modularity and Interoperability
 
-The individual tools mostly operate on quadmeshes stored in the tiffxyz format, wich is just a directory with the mesh corners stored as points three float tiff files (x.tif, y.tif, z.tif) and a meta.json file.
+The individual tools mostly operate on quadmeshes stored in the tiffxyz format, which is just a directory with the mesh corners stored as points three float tiff files (x.tif, y.tif, z.tif) and a meta.json file.
 The surface generated by different stages of the process are interchangable (within reason), so processing steps can be left out.
-For example rendering and ink detection may be run on patches from the first patch generation stage, on traced surfaces or on inpainted surfaces interchangably.
+For example rendering and ink detection may be run on patches from the first patch generation stage, on traced surfaces or on inpainted surfaces interchangeably.
 
 ## Debugging & Inspection of Results
 Many tools output information on the command line and store additional debugging visualizations in the working directory, useful for accessing the quality and issues with the run.
@@ -226,7 +226,7 @@ This process generated an initial set of 775 patches.
 The patches can be inspected with VC3D by placing them in the paths directory of the volpkg. Symlinks can also be used.
 
 ## 3. patch collection expansion
-The patche expansion step also documented [here](https://discord.com/channels/1079907749569237093/1312490723001499808) generates a set of overlapping patches throughout the whole gp-prediction volume.
+The patch expansion step also documented [here](https://discord.com/channels/1079907749569237093/1312490723001499808) generates a set of overlapping patches throughout the whole gp-prediction volume.
 
 The commands used where: 
 
@@ -284,7 +284,7 @@ This step will finally create larger connected surfaces. The large surface trace
 
 and repeat step 2-4 or 1-4 several times
 
-Keep previous trace rounds around as the fusion step can later join multple traces and problematic areas of a trace can be masked out. A mask can be generated for example with VC3D, or by using any 8-bit grayscale image with the same aspect ratio as one of the tiffxyz channels.
+Keep previous trace rounds around as the fusion step can later join multiple traces and problematic areas of a trace can be masked out. A mask can be generated for example with VC3D, or by using any 8-bit grayscale image with the same aspect ratio as one of the tiffxyz channels.
 
 ### 4.1 Pick a seed patch
 
@@ -320,10 +320,10 @@ Using for the finall passes these settings:
 
 
 - flip_x determines the direction of the trace (it always grows to the right, but that can go to the inside or outside of the scroll, depending on seed location).
-- global steps per window: numer of global optimization steps per moving window. The tracer operates in a moving window fasion, once the global optimization steps were run per window and no new corners were added the window is moved to the right and the process repeated. At the beginning use 0 global steps to get a fast and long trace and see if there are any coarse errors.
+- global steps per window: number of global optimization steps per moving window. The tracer operates in a moving window fashion, once the global optimization steps were run per window and no new corners were added the window is moved to the right and the process repeated. At the beginning use 0 global steps to get a fast and long trace and see if there are any coarse errors. Set to 0 to get a purely greedy but quite fast trace.
 - consensus_default_th: lowest number of inliers (patch "supports") required per corner to be considered an inlier. Note that a single well connected patch gives more than a single support to a corner (so this is not the number of surfaces). Maximum of 20 to get only well connected patches, minimum of 6 before there are lot of errors.
 For the submission values of 6 and 10 were used.
-- consesus_limit_th: if we could otherwise not proceeed go down to this number of required inliers, this will only be used if otherwise the trace would end.
+- consesus_limit_th: if we could otherwise not proceed go down to this number of required inliers, this will only be used if otherwise the trace would end.
 
 The tracer will generated debug/preview surface every 50 generations (labeled z_dbg_gen...) and in the and save a final surface, both in the output dir.
 
@@ -335,7 +335,7 @@ Also POIs can be used to mark points in one view and inspect it in another (add 
 The errors that need to be fixed are generally sheet jumps, were the surface jumps from one correct surface to another correct surface.
 Often these are visible by checking for gaps in the generated trace as a jump will normally not reconnect with the rest of the trace (cause its on another sheet).
 Then close to the bottleneck is normally where an error occurs.
-It is useful to go back in the generated dbg surfaces to find the first time an error appears so as to annotate the root cause.
+It is useful to go back in the generated debug surfaces to find the first time an error appears so as to annotate the root cause.
 
 ![image](imgs/sheet_jump.jpg)
 
@@ -369,13 +369,13 @@ With this process a mask can be generated using less than 10 clicks. This is the
 **approved**<br>
 Checking the approved checkbox will mark a patch as manually "approved" which means the tracer will consider mesh corners coming from such a patch as good without checking for other patches. So it is important that such a patch is error free (which is not necessary when creating a mask to only remove a problem area without checking "approved").
 So the whole patch needs to be checked or potentially problematic areas need to be masked out generously, as any error in an approved patch will translate 1:1 to an error in the final trace. For this reason this feature was used sparingly for the submission and only used where otherwise the trace would not continue at all.
-If a whole patch needs to be checke the following process was used:
+If a whole patch needs to be checked the following process was used:
 
 - ctrl-click on a point in the area that shall be "correct".
-- follow along the two segment slices and place blue POIs every at an interval whereever you are sure the trace follows the correct sheet.
+- follow along the two segment slices and place blue POIs every at an interval wherever you are sure the trace follows the correct sheet.
 - place red POIs where errors occur
 this process will place a "cross" of two lines which show the good/bad areas of the patch
-- ctrl-click to focus on a point on/between blue points to genrate a second line, this way a whole grid of points is genrated
+- ctrl-click to focus on a point on/between blue points to generate a second line, this way a whole grid of points is generated
 - use this grid as orientation to create a mask in GIMP
 
 This process could take anywhere from 5-30minutes, therefor it was used very sparingly for the submission (6 times) and not to generate a large approved patch but just to bridge a bad spot, areas that weren't necessary to bridge a gap were simply not checked and masked out to save time.
@@ -397,7 +397,7 @@ OMP_WAIT_POLICY=PASSIVE OMP_NESTED=FALSE \
 vc_tifxyz_winding /path/to/trace
 ```
 Which will generate some debug images and the two files "winding.tif" and "winding_vis.tif".
-Check the winding vis for errors, it should just be a smooth continous rainbow going from left to right, if it isn't there were some errors in the source trace that weren't masked out. Mask those errors in the source trace and re-run winding estimation until it works, this should not generally be necessary.
+Check the winding vis for errors, it should just be a smooth continuous rainbow going from left to right, if it isn't there were some errors in the source trace that weren't masked out. Mask those errors in the source trace and re-run winding estimation until it works, this should not generally be necessary.
 
 Copy the winding.tif and wind_vis.tif to the traces storage directory so its all in one place and ready for the next step.
 The winding estimation should take about 10s.
@@ -446,14 +446,14 @@ Which takes about half an hour:
 
 ## 7. ink prediction
 
-The ink detection is using the accelerated version documented [here]() at a slightly reduced quality to make processing times bearable, and is using the default settings of:
+The ink detection is using the accelerated version documented [thread](https://discord.com/channels/1079907749569237093/1315006782191570975) at a slightly reduced quality to make processing times bearable, and is using the default settings of:
 - half resolution rendering (from half scale ome-zarr subdirectory)
 - using 21 layers
 ```
-time python fast_inference_timesformer.py --layer_path /path/to/rendered-slices --model_path timesformer_wild15_20230702185753_0_fr_i3depoch=12.ckpt --out_path fasp.jpg --quality 1 --compile --reverse
+time python fast_inference_timesformer.py --layer_path /path/to/rendered-slices --model_path timesformer_wild15_20230702185753_0_fr_i3depoch=12.ckpt --out_path output.jpg --quality 1 --compile --reverse
 ```
 
-Which yields the final ink detection image at fasp.jpg.
+Which yields the final ink detection image as output.jpg.
 ```
 real    29m30.555s
 user    47m1.576s
@@ -462,7 +462,7 @@ sys     18m55.119s
 
 If no ink is being detected maybe the layer direction needs to be flipped which can be achived with the --reverse flag.
 
-# Detailed Documentation
+# Detailed Command Documentation
 
 ## vc_grow_seg_from_segments
 
@@ -537,14 +537,14 @@ example params.json:
     "opt_w" : 4
 }
 ```
-Note that the first trace has a special imporatance as it is used to set the size of the trace as well as for estimating winding number offsets and to provide normal regularization, so it should be the largest and most complete trace.
+Note that the first trace has a special importance as it is used to set the size of the trace as well as for estimating winding number offsets and to provide normal regularization, so it should be the largest and most complete trace.
 
 ### Parameters
 
 - trace_mul: step size relative to the base surface step size
 - dist_w: weight of distance loss regulating the distance between quad corners
-- straight_w: weight of the straighness loss on the surface, higher = smoother, less detailed, lower chance of artifacts
-- surf_w: weight of the data term (surface loss), higher = more detailed surface, note that the output surface gets reprojected to the source trace surface, so where inputs are available the output surface will always follow closely the sources and this value is just relevant for the modeling.
+- straight_w: weight of the straightness loss on the surface, higher = smoother, less detailed, lower chance of artifacts
+- surf_w: weight of the data term (surface loss), higher = more detailed surface, note that the output surface gets re-projected to the source trace surface, so where inputs are available the output surface will always follow closely the sources and this value is just relevant for the modeling.
 - z_loc_loss_w: step size relative to the base surface step size
 - wind_w: loss on winding number location: required so the solve can't switch to a different sheet which is close by
 - wind_th: winding number threshold, if the winding number changed to above this threshold it is considered to be on another wrap and ignored
@@ -585,7 +585,7 @@ The tracing algorithms all have in common that they:
 - using data term and mesh structure constraints
 - greedily expand single corners followed by regular windowed least sqares optimization
 - are implemented on top of ceres-solver (and can make use of cudss gpu accelerated sparse solver to accelerate solving)
-- use "backwards" surface constraints (also compare)[#revert-surface-constraints] where if the trace is built on top of existing surfaces each quadmesh corner of the output mesh will have an associtated 2D location refereing to the base mesh.
+- use "backwards" surface constraints (also compare)[#revert-surface-constraints] where if the trace is built on top of existing surfaces each quadmesh corner of the output mesh will have an associated 2D location referring to the base mesh.
 
 ### mesh structure constraints
 
@@ -602,16 +602,16 @@ The large area tracer operates similar to the patch tracer but the data term is 
 ## Filling, Fusion & Flattening
 
 This process starts by taking the separate surfaces with their relative winding numbers and finding correspondances between them. The winding offsets at these correspondances are used to normalize the separate winding estimates into on globally consistent winding assignment. To compensate for winding direction differences (because the direction of traces might be inverted) the offsets are also calculated for a reverted winding number per trace and direction with the smaller difference between the 10/90 percentile of the winding offsets is used to generate the mapping.
-The actual tracer operates similarly to the large area tracer but does add additional corners in the holes of the input traces which only consist of structure constraints, to try to inpaint the input surfaces. In addition the z/y constraints are very weak (to allow for proper flattening) and the corner locations are constrained by the tgt winding number per location, so the optimizer can't "jump sheets". Finally to recover the full fidelity of the input tracers at each corner the optimized (and trough structure constraints smoothed) coordiante is replaced by the original base surface coordinate and the surface is upsampled by using the base surface coordiantes instead of a direct interpolation of the optimized model.
+The actual tracer operates similarly to the large area tracer but does add additional corners in the holes of the input traces which only consist of structure constraints, to try to inpaint the input surfaces. In addition the z/y constraints are very weak (to allow for proper flattening) and the corner locations are constrained by the tgt winding number per location, so the optimizer can't "jump sheets". Finally to recover the full fidelity of the input tracers at each corner the optimized (and trough structure constraints smoothed) coordinate is replaced by the original base surface coordinate and the surface is upsampled by using the base surface coordinates instead of a direct interpolation of the optimized model.
 
 ## Winding Estimation
 
 The winding estimation works by:
-- placeing N random points on a surface
+- placing N random points on a surface
 - calculating all intersections along the normal with the surface
 - calculating per wrap median pixel distance between intersections (basically a wrap width in pixels)
 - using this pixel distance we can reject intersections which are not neighboring wraps
-- finally a diffusion process distributes from a single seed a consistend winding number by incrementing/decrementing the winding number at each "jump" along the normal, while jointly diffusion in y direction (which keeps the winding number the same) and in x direction (which increases/decreases the winding number according to the previously estimated wrap width)
+- finally a diffusion process distributes from a single seed a consistent winding number by incrementing/decrementing the winding number at each "jump" along the normal, while jointly diffusion in y direction (which keeps the winding number the same) and in x direction (which increases/decreases the winding number according to the previously estimated wrap width)
 
 # Outlook / Future Work
 Big and small ideas for improving upon this pipeline.
@@ -623,7 +623,7 @@ Currently the first surface used in vc_fill_quadmesh need to cover the whole inp
 The model used in all surface optimizations above is to have an output surface and the quadmesh corners of this output surface have attached constraints, like the 2D location of that corner in a base surface or patch. This is not well behaved in some cases because the same underlying surface point can be referenced by different corners and corners can "wander" off the base surface. Instead keep geometry constrains on the output corners but for the surface relation invert the mapping and have the base surface corners reference the 2D surface location on the output surface. This should make the optimization more well behaved and avoids some geometric issues like hole closing an surface shrinking in the global optimization.
 
 ## winding constraints and annotations in 3D
-The winding estimation used for the fusion works like and is a very simple algorithm. The surface tracers (patch and larger area tracer) have a hard time dealing with sheet jumps as they only rely on probabilities of errors being less likely to agree than correct surfaces an assumption which doesn't always hold true. So the idea is to apply the surface winding diffusion in 3D by leveraging the surface predictions as well as manual labels. Labels will basically be: These two points are N winds apart, or these points are the same wind. This can then be used to diffuse a winding assignment along the binary surface prediction in the 3D volume and only after this step the surface tracing is performed. This has a few benefitial properties as gaps will be automatically closed (becuase if you know where wind 1 and 3 is a diffusion of these labels will automatically produce the intermediate 2 somewhere between these labels) and is more natural to annotate compared to masking patches containing errors. The job of the surface traces is thus much simplified as they do not need to cope with ambiguities but can actually focus on tracing a high quality surface and annotations should be doable in less time for larger volumes. Additional fiber annotations and predictions can also be incorporated naturally and a more advanced implementation might make use of a [field based optimization](https://discord.com/channels/1079907749569237093/1312623336739831878/1323487224293101568).
+The winding estimation used for the fusion works like and is a very simple algorithm. The surface tracers (patch and larger area tracer) have a hard time dealing with sheet jumps as they only rely on probabilities of errors being less likely to agree than correct surfaces an assumption which doesn't always hold true. So the idea is to apply the surface winding diffusion in 3D by leveraging the surface predictions as well as manual labels. Labels will basically be: These two points are N winds apart, or these points are the same wind. This can then be used to diffuse a winding assignment along the binary surface prediction in the 3D volume and only after this step the surface tracing is performed. This has a few beneficial properties as gaps will be automatically closed (because if you know where wind 1 and 3 is a diffusion of these labels will automatically produce the intermediate 2 somewhere between these labels) and is more natural to annotate compared to masking patches containing errors. The job of the surface traces is thus much simplified as they do not need to cope with ambiguities but can actually focus on tracing a high quality surface and annotations should be doable in less time for larger volumes. Additional fiber annotations and predictions can also be incorporated naturally and a more advanced implementation might make use of a [field based optimization](https://discord.com/channels/1079907749569237093/1312623336739831878/1323487224293101568).
 
 ## surface normal estimation
-In various stages of the tracing and inpainting surfaces corners are produced from neighboring corners. Train a normal estimating model similiar to the current nnunet but trained on output normal vectors instead of a binary classification, so even in areas where the surface location is uncertain normal constraints can be used to provide some sensible structure to the surface and avoid coarse errors.
+In various stages of the tracing and inpainting surfaces corners are produced from neighboring corners. Train a normal estimating model similar to the current nnunet but trained on output normal vectors instead of a binary classification, so even in areas where the surface location is uncertain normal constraints can be used to provide some sensible structure to the surface and avoid coarse errors.
