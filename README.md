@@ -44,6 +44,8 @@ https://dl.ash2txt.org/community-uploads/waldkauz/fasp/
 - /fullres - layers rendered at full resolution at 2.6 gigapixel per image (layers is at half res)
 - /fullres_tiled - fullres + tiled into smaller tiles (390 megapixels)
 - /autogen8_1217_ensemble.zip - patches and annotations used for the submission
+- /fasp_fill_hr_20241230145834485_v2.obj.zip - obj conversion of fasp_fill_hr_20241230145834485_v2
+- /fasp_fill_hr_20241230145834485.obj.zip - copy of v2
 
 ![image](imgs/full_segment.jpg)
 
