@@ -4,7 +4,11 @@ This repo documents a submission for the first automated segmentation price of t
 It serves as a documentation on how to run the full automated segmentation pipeline and a description of the algorithms and tools used.
 
 # Changelog
-- 2025-01-10 added Changelog and errata sections, added additional data & descriptions
+- 2025-01-04 - added high res renderings
+- 2025-01-10
+    - added Changelog section
+    - added Errata section
+    - added additional data & descriptions for workaround for FASP-003-2025-01-10
 
 # Errata
 - FASP-001-2025-01-10 - a few pixel wide black vertical lines are present only in the rendered images https://github.com/hendrikschilling/volume-cartographer/issues/3
@@ -29,10 +33,17 @@ It serves as a documentation on how to run the full automated segmentation pipel
 The final data is available at:
 https://dl.ash2txt.org/community-uploads/waldkauz/fasp/
 
-- /fasp_fill_hr_20241230145834485 the final submission surface in tiffxyz format
+- /fasp_fill_hr_20241230145834485_v1 the original submission surface in tiffxyz format
+- /fasp_fill_hr_20241230145834485_v2 updated surface with workaround for holes bug (compare Errata -> FASP-003-2025-01-10)
+- /fasp_fill_hr_20241230145834485 - copy of v2
 - ~~/ink.jpg~~ - the ink detection of the submitted surface, aligns with the surface xyz pixels by scaling the xyz coord image by 1.25x (ink is sampled at 1/16 and the surface at 1/20) *not yet uploaded as requested by the FASP submission form*
 - /layers - layer 0 - 21 where 10 is the central layer not offset against the surface, they are at half of full voxel resolution so 10:1 against the surface xyz tiffs and 8:1 against the ink detection
-- /masks - additional information on the surface quality, a value of 0 in the state.tif means no surface, 100 - high quality, 80 - infilled
+- /masks
+    - state.tif - additional information on the surface quality, a value of 0 in the means no surface, 100 - high quality, 80 - infilled
+    - fasp_mask_holes.tif - mask denoting holes in the v1 data, used with vc_tifxyz_inp_mask to generated the v2 surface
+- /fullres - layers rendered at full resolution at 2.6 gigapixel per image (layers is at half res)
+- /fullres_tiled - fullres + tiled into smaller tiles (390 megapixels)
+- /autogen8_1217_ensemble.zip - patches and annotations used for the submission
 
 ![image](imgs/full_segment.jpg)
 
@@ -477,6 +488,16 @@ sys     18m55.119s
 ```
 
 If no ink is being detected maybe the layer direction needs to be flipped which can be achived with the --reverse flag.
+
+## 8. workaround for holes discovered in the surface
+Compare also [Errata -> FASP-003-2025-01-10](#errata).  
+The [inpaint mask](https://dl.ash2txt.org/community-uploads/waldkauz/fasp/masks/fasp_mask_holes.tif) was generated using gimp->open surface->x.tif -> normal map -> threshold -> dilate/erode operations + composition to get a mask of just the holes.
+
+Then  run:
+```
+vc_tifxyz_inp_maskinp_mask <src-tiffxyz> <mask-img> <output-tiffxyz>
+```
+to generate a surface where small holes have been inpainted.
 
 # Detailed Command Documentation
 
