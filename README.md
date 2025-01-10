@@ -3,6 +3,15 @@
 This repo documents a submission for the first automated segmentation price of the vesuvius challenge 2024 .
 It serves as a documentation on how to run the full automated segmentation pipeline and a description of the algorithms and tools used.
 
+# Changelog
+- 2025-01-10 added Changelog and errata sections, added additional data & descriptions
+
+# Errata
+- FASP-001-2025-01-10 - a few pixel wide black vertical lines are present only in the rendered images https://github.com/hendrikschilling/volume-cartographer/issues/3
+- FASP-002-2025-01-10 - edge interpolation artifacts present in at the the rendered images https://github.com/hendrikschilling/volume-cartographer/issues/4
+- FASP-003-2025-01-10 - small holes from upsamling/grounding in the surface and rendered traces - https://github.com/hendrikschilling/volume-cartographer/issues/2
+    - as a workaround vc_tifxyz_inp_mask can be used to inpaint those areas using a manual mask
+
 # Links & Repos & Docs
 
 ## Surface Volume Prediction
