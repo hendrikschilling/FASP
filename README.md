@@ -9,12 +9,14 @@ It serves as a documentation on how to run the full automated segmentation pipel
     - added Changelog section
     - added Errata section
     - added additional data & descriptions for workaround for FASP-003-2025-01-10
+- 2025-01-14 added vc_tiffxyz_upscale_grounding, removed vc_tifxyz_inp_mask
 
 # Errata
 - FASP-001-2025-01-10 - a few pixel wide black vertical lines are present only in the rendered images https://github.com/hendrikschilling/volume-cartographer/issues/3
 - FASP-002-2025-01-10 - edge interpolation artifacts present in at the the rendered images https://github.com/hendrikschilling/volume-cartographer/issues/4
 - FASP-003-2025-01-10 - small holes from upsamling/grounding in the surface and rendered traces - https://github.com/hendrikschilling/volume-cartographer/issues/2
-    - as a workaround vc_tifxyz_inp_mask can be used to inpaint those areas using a manual mask
+    - ~~WORKAROUND 2025-01-10 as a workaround vc_tifxyz_inp_mask can be used to inpaint those areas using a manual mask~~
+    - FIXED 2025-01-14 in dev-next (from 7bc5a7702b717b159d54c6083ee92cd1f8ccd2e7), added vc_tiffxyz_upscale_grounding
 
 # Links & Repos & Docs
 
@@ -33,19 +35,26 @@ It serves as a documentation on how to run the full automated segmentation pipel
 The final data is available at:
 https://dl.ash2txt.org/community-uploads/waldkauz/fasp/
 
-- /fasp_fill_hr_20241230145834485_v1 the original submission surface in tiffxyz format
-- /fasp_fill_hr_20241230145834485_v2 updated surface with workaround for holes bug (compare Errata -> FASP-003-2025-01-10)
-- /fasp_fill_hr_20241230145834485 - copy of v2
-- ~~/ink.jpg~~ - the ink detection of the submitted surface, aligns with the surface xyz pixels by scaling the xyz coord image by 1.25x (ink is sampled at 1/16 and the surface at 1/20) *not yet uploaded as requested by the FASP submission form*
-- /layers - layer 0 - 21 where 10 is the central layer not offset against the surface, they are at half of full voxel resolution so 10:1 against the surface xyz tiffs and 8:1 against the ink detection
-- /masks
-    - state.tif - additional information on the surface quality, a value of 0 in the means no surface, 100 - high quality, 80 - infilled
-    - fasp_mask_holes.tif - mask denoting holes in the v1 data, used with vc_tifxyz_inp_mask to generated the v2 surface
-- /fullres - layers rendered at full resolution at 2.6 gigapixel per image (layers is at half res)
-- /fullres_tiled - fullres + tiled into smaller tiles (390 megapixels)
-- /autogen8_1217_ensemble.zip - patches and annotations used for the submission
-- /fasp_fill_hr_20241230145834485_v2.obj.zip - obj conversion of fasp_fill_hr_20241230145834485_v2
-- /fasp_fill_hr_20241230145834485.obj.zip - copy of v2
+- /v1 - the original submission (+ additional data)
+    - /fasp_fill_hr_20241230145834485 surface in tiffxyz format
+    - /layers - layer 0 - 21 where 10 is the central layer not offset against the surface, they are at half of full voxel resolution so 10:1 against the surface xyz tiffs and 8:1 against the ink detection
+    - /masks
+        - state.tif - additional information on the surface quality, a value of 0 in the means no surface, 100 - high quality, 80 - infilled
+        - fasp_mask_holes.tif - mask denoting holes in the v1 data, used with vc_tifxyz_inp_mask to generated the v2 surface
+    - /fullres - layers rendered at full resolution at 2.6 gigapixel per image (layers is at half res)
+    - /fullres_tiled - fullres + tiled into smaller tiles (390 megapixels)
+    - /autogen8_1217_ensemble.zip - patches and annotations used for the submission
+    - ~~/ink.jpg~~ - the ink detection of the submitted surface, aligns with the surface xyz pixels by scaling the xyz coord image by 1.25x (ink is sampled at 1/16 and the surface at 1/20) *not yet uploaded as requested by the FASP submission form*
+
+- /v2 - data from the workarund of Erratum FASP-003-2025-01-10 - use v3 instead
+    - /fasp_fill_hr_20241230145834485 - updated surface with workaround for holes bug (compare Errata -> FASP-003-2025-01-10)
+    - /fasp_fill_hr_20241230145834485.obj.zip - obj conversion of fasp_fill_hr_20241230145834485
+
+- /v3 - update fixing Erratum FASP-003-2025-01-10
+    - /grounding_hr_20250113204408937 - high quality surface
+    - fasp_v3_obj.zip - obj conversion (including vertex normals)
+    - /layers - half scale rendering of the surface
+    - /layers_hr - full scale rendering of the surface
 
 ![image](imgs/full_segment.jpg)
 
@@ -458,6 +467,17 @@ Takes around 40 minutes:
 147992inputs+2594872outputs (9major+8252759minor)pagefaults 0swaps
 ```
 Note that traces that differ in direction _can_ be used, the winding estimator will automatically flip the input winding number and offset it so the different traces align.
+The process outputs a tiffxyz trace in the working directory named fuse_fill_*timedatestring*.
+
+## 5.3 post-processing (grounding)
+
+The output of vc_fill_quadmesh is a large mesh at a lower resolution than the source traces. To project the fitted surface back to the base meshes (where they exist) run winding estimate on the output of the last step and then:
+
+```
+vc_tiffxyz_upscale_grounding <infill-tiffxyz> <infill-winding> 5 /path/to/trace1/ /path/to/trace1/winding.tif ...
+```
+With the same traces as used for the fusion step (or also additional ones).
+This will produce 
 
 ## 6. rendering
 
@@ -490,16 +510,6 @@ sys     18m55.119s
 ```
 
 If no ink is being detected maybe the layer direction needs to be flipped which can be achived with the --reverse flag.
-
-## 8. workaround for holes discovered in the surface
-Compare also [Errata -> FASP-003-2025-01-10](#errata).  
-The [inpaint mask](https://dl.ash2txt.org/community-uploads/waldkauz/fasp/masks/fasp_mask_holes.tif) was generated using gimp->open surface->x.tif -> normal map -> threshold -> dilate/erode operations + composition to get a mask of just the holes.
-
-Then  run:
-```
-vc_tifxyz_inp_maskinp_mask <src-tiffxyz> <mask-img> <output-tiffxyz>
-```
-to generate a surface where small holes have been inpainted.
 
 # Detailed Command Documentation
 
