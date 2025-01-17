@@ -10,10 +10,13 @@ It serves as a documentation on how to run the full automated segmentation pipel
     - added Errata section
     - added additional data & descriptions for workaround for FASP-003-2025-01-10
 - 2025-01-14 added vc_tiffxyz_upscale_grounding, removed vc_tifxyz_inp_mask
+- 2025-01-17 fixed FASP-001-2025-01-10 and FASP-002-2025-01-10
 
 # Errata
 - FASP-001-2025-01-10 - a few pixel wide black vertical lines are present only in the rendered images https://github.com/hendrikschilling/volume-cartographer/issues/3
+    - FIXED 2025-01-17 on dev-next from 34e298a146a13a559d39479ae1b15c608c486786
 - FASP-002-2025-01-10 - edge interpolation artifacts present in at the the rendered images https://github.com/hendrikschilling/volume-cartographer/issues/4
+    - FIXED 2025-01-17 on dev-next from ea6fda60a06f045a846264b25ff6e4bd2096cbc9
 - FASP-003-2025-01-10 - small holes from upsamling/grounding in the surface and rendered traces - https://github.com/hendrikschilling/volume-cartographer/issues/2
     - ~~WORKAROUND 2025-01-10 as a workaround vc_tifxyz_inp_mask can be used to inpaint those areas using a manual mask~~
     - FIXED 2025-01-14 in dev-next (from 7bc5a7702b717b159d54c6083ee92cd1f8ccd2e7), added vc_tiffxyz_upscale_grounding
