@@ -59,6 +59,9 @@ https://dl.ash2txt.org/community-uploads/waldkauz/fasp/
     - /layers - half scale rendering of the surface
     - /layers_hr - full scale rendering of the surface
 
+- /v4 - update fixing Errata FASP-001-2025-01-10,FASP-002-2025-01-10
+    - /layers_hr - full scale rendering of the surface
+
 ![image](imgs/full_segment.jpg)
 
 # Bonus Bin
